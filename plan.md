@@ -51,7 +51,8 @@ item does not imply that its phase exit criteria have been met.
     prepare are implemented; initial nonblocking interleaved transfers and
     strict/automatic XRUN recovery, status/delay queries, and state-aware drain
     are implemented; reset, pause/resume, rewind/forward, and hardware sync are
-    exposed; broader negotiation and remaining lifecycle operations remain.)
+    exposed; unconstrained access/format/interval capability discovery is
+    implemented; broader negotiation and remaining lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**

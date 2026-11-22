@@ -481,6 +481,78 @@ func anyHardwareParams() uapi.PCMHWParams {
 	return params
 }
 
+func (h *Handle) capabilities() (Capabilities, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	params := anyHardwareParams()
+	params.RequestMask = ^uint32(0)
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&params)); err != nil {
+		return Capabilities{}, fmt.Errorf("alsa pcm: refine hardware capabilities: %w", err)
+	}
+	return capabilitiesFromParams(params), nil
+}
+
+func capabilitiesFromParams(params uapi.PCMHWParams) Capabilities {
+	return Capabilities{
+		Accesses:     accessValues(params.Masks[uapi.PCMHWParamAccess-uapi.PCMHWParamFirstMask]),
+		Formats:      formatValues(params.Masks[uapi.PCMHWParamFormat-uapi.PCMHWParamFirstMask]),
+		SampleBits:   rangeValue(params, uapi.PCMHWParamSampleBits),
+		FrameBits:    rangeValue(params, uapi.PCMHWParamFrameBits),
+		Channels:     rangeValue(params, uapi.PCMHWParamChannels),
+		Rate:         rangeValue(params, uapi.PCMHWParamRate),
+		PeriodTime:   rangeValue(params, uapi.PCMHWParamPeriodTime),
+		PeriodFrames: rangeValue(params, uapi.PCMHWParamPeriodSize),
+		PeriodBytes:  rangeValue(params, uapi.PCMHWParamPeriodBytes),
+		Periods:      rangeValue(params, uapi.PCMHWParamPeriods),
+		BufferTime:   rangeValue(params, uapi.PCMHWParamBufferTime),
+		BufferFrames: rangeValue(params, uapi.PCMHWParamBufferSize),
+		BufferBytes:  rangeValue(params, uapi.PCMHWParamBufferBytes),
+		TickTime:     rangeValue(params, uapi.PCMHWParamTickTime),
+	}
+}
+
+func accessValues(mask uapi.PCMMask) []Access {
+	var values []Access
+	for _, value := range maskValues(mask) {
+		if value <= int(RWNonInterleaved) {
+			values = append(values, Access(value))
+		}
+	}
+	return values
+}
+
+func formatValues(mask uapi.PCMMask) []Format {
+	values := maskValues(mask)
+	formats := make([]Format, len(values))
+	for index, value := range values {
+		formats[index] = Format(value)
+	}
+	return formats
+}
+
+func maskValues(mask uapi.PCMMask) []int {
+	var values []int
+	for wordIndex, word := range mask.Bits {
+		for bit := 0; bit < 32; bit++ {
+			if word&(uint32(1)<<bit) != 0 {
+				values = append(values, wordIndex*32+bit)
+			}
+		}
+	}
+	return values
+}
+
+func rangeValue(params uapi.PCMHWParams, parameter int) Range {
+	interval := params.Intervals[parameter-uapi.PCMHWParamFirstInterval]
+	return Range{
+		Minimum: interval.Min, Maximum: interval.Max,
+		OpenMinimum: interval.Flags&uapi.PCMIntervalOpenMin != 0,
+		OpenMaximum: interval.Flags&uapi.PCMIntervalOpenMax != 0,
+		Integer:     interval.Flags&uapi.PCMIntervalInteger != 0,
+		Empty:       interval.Flags&uapi.PCMIntervalEmpty != 0,
+	}
+}
+
 func setMask(p *uapi.PCMHWParams, parameter int, value uint32) {
 	index := parameter - uapi.PCMHWParamFirstMask
 	for word := range p.Masks[index].Bits {

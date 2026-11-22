@@ -32,7 +32,10 @@ const (
 	PCMHWParamLastInterval  = PCMHWParamTickTime
 
 	PCMSubformatStandard = uint32(0)
+	PCMIntervalOpenMin   = uint32(1 << 0)
+	PCMIntervalOpenMax   = uint32(1 << 1)
 	PCMIntervalInteger   = uint32(1 << 2)
+	PCMIntervalEmpty     = uint32(1 << 3)
 )
 
 // PCMInfo matches struct snd_pcm_info from Linux UAPI sound/asound.h.

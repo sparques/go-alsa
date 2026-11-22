@@ -133,17 +133,103 @@ func (h *Handle) WriteInterleaved(ctx context.Context, samples []int16) (int, er
 type Access int32
 
 const (
+	MMAPInterleaved    Access = 0
+	MMAPNonInterleaved Access = 1
+	MMAPComplex        Access = 2
 	// RWInterleaved transfers all channel samples in one interleaved buffer.
-	RWInterleaved Access = 3
+	RWInterleaved    Access = 3
+	RWNonInterleaved Access = 4
 )
+
+func (a Access) String() string {
+	switch a {
+	case MMAPInterleaved:
+		return "MMAP_INTERLEAVED"
+	case MMAPNonInterleaved:
+		return "MMAP_NONINTERLEAVED"
+	case MMAPComplex:
+		return "MMAP_COMPLEX"
+	case RWInterleaved:
+		return "RW_INTERLEAVED"
+	case RWNonInterleaved:
+		return "RW_NONINTERLEAVED"
+	default:
+		return "UNKNOWN"
+	}
+}
 
 // Format identifies the in-memory sample representation.
 type Format int32
 
 const (
+	S8 Format = 0
+	U8 Format = 1
 	// S16LE is signed 16-bit little-endian PCM.
-	S16LE Format = 2
+	S16LE   Format = 2
+	S16BE   Format = 3
+	U16LE   Format = 4
+	U16BE   Format = 5
+	S24LE   Format = 6
+	S24BE   Format = 7
+	U24LE   Format = 8
+	U24BE   Format = 9
+	S32LE   Format = 10
+	S32BE   Format = 11
+	U32LE   Format = 12
+	U32BE   Format = 13
+	S24_3LE Format = 32
+	S24_3BE Format = 33
+	U24_3LE Format = 34
+	U24_3BE Format = 35
 )
+
+func (f Format) String() string {
+	names := map[Format]string{
+		S8: "S8", U8: "U8", S16LE: "S16_LE", S16BE: "S16_BE",
+		U16LE: "U16_LE", U16BE: "U16_BE", S24LE: "S24_LE", S24BE: "S24_BE",
+		U24LE: "U24_LE", U24BE: "U24_BE", S32LE: "S32_LE", S32BE: "S32_BE",
+		U32LE: "U32_LE", U32BE: "U32_BE", S24_3LE: "S24_3LE", S24_3BE: "S24_3BE",
+		U24_3LE: "U24_3LE", U24_3BE: "U24_3BE",
+	}
+	if name, ok := names[f]; ok {
+		return name
+	}
+	return "UNKNOWN"
+}
+
+// Range describes one kernel hardware-parameter interval. OpenMinimum and
+// OpenMaximum indicate excluded bounds.
+type Range struct {
+	Minimum     uint32
+	Maximum     uint32
+	OpenMinimum bool
+	OpenMaximum bool
+	Integer     bool
+	Empty       bool
+}
+
+// Capabilities contains unconstrained hardware possibilities returned by
+// SNDRV_PCM_IOCTL_HW_REFINE.
+type Capabilities struct {
+	Accesses     []Access
+	Formats      []Format
+	SampleBits   Range
+	FrameBits    Range
+	Channels     Range
+	Rate         Range
+	PeriodTime   Range
+	PeriodFrames Range
+	PeriodBytes  Range
+	Periods      Range
+	BufferTime   Range
+	BufferFrames Range
+	BufferBytes  Range
+	TickTime     Range
+}
+
+// Capabilities queries unconstrained hardware access, format, and interval
+// ranges without changing the PCM state.
+func (h *Handle) Capabilities() (Capabilities, error) { return h.capabilities() }
 
 // HardwareConfig constrains direct hardware parameters. This initial API
 // requires exact values; later negotiation APIs will expose near/range policy.

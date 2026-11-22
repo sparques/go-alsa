@@ -61,3 +61,36 @@ func TestHardwareCapabilities(t *testing.T) {
 		t.Fatal("zero setup reported capabilities")
 	}
 }
+
+func TestCapabilitiesFromParams(t *testing.T) {
+	t.Parallel()
+	params := anyHardwareParams()
+	setMask(&params, uapi.PCMHWParamAccess, uint32(RWInterleaved))
+	setMask(&params, uapi.PCMHWParamFormat, uint32(S16LE))
+	params.Intervals[uapi.PCMHWParamChannels-uapi.PCMHWParamFirstInterval] = uapi.PCMInterval{Min: 1, Max: 2, Flags: uapi.PCMIntervalInteger}
+	params.Intervals[uapi.PCMHWParamRate-uapi.PCMHWParamFirstInterval] = uapi.PCMInterval{Min: 44100, Max: 48000, Flags: uapi.PCMIntervalOpenMin}
+
+	got := capabilitiesFromParams(params)
+	if len(got.Accesses) != 1 || got.Accesses[0] != RWInterleaved {
+		t.Fatalf("accesses = %#v", got.Accesses)
+	}
+	if len(got.Formats) != 1 || got.Formats[0] != S16LE {
+		t.Fatalf("formats = %#v", got.Formats)
+	}
+	if got.Channels.Minimum != 1 || got.Channels.Maximum != 2 || !got.Channels.Integer {
+		t.Fatalf("channels = %#v", got.Channels)
+	}
+	if got.Rate.Minimum != 44100 || got.Rate.Maximum != 48000 || !got.Rate.OpenMinimum {
+		t.Fatalf("rate = %#v", got.Rate)
+	}
+}
+
+func TestAccessAndFormatStrings(t *testing.T) {
+	t.Parallel()
+	if RWInterleaved.String() != "RW_INTERLEAVED" || Access(99).String() != "UNKNOWN" {
+		t.Fatal("unexpected access string")
+	}
+	if S16LE.String() != "S16_LE" || Format(99).String() != "UNKNOWN" {
+		t.Fatal("unexpected format string")
+	}
+}

@@ -38,6 +38,24 @@ func TestHardwareLoopback(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer playback.Close()
+	captureCapabilities, err := capture.Capabilities()
+	if err != nil {
+		t.Fatalf("capture capabilities: %v", err)
+	}
+	playbackCapabilities, err := playback.Capabilities()
+	if err != nil {
+		t.Fatalf("playback capabilities: %v", err)
+	}
+	t.Logf("capture channels %d..%d, playback channels %d..%d, capture rate %d..%d",
+		captureCapabilities.Channels.Minimum, captureCapabilities.Channels.Maximum,
+		playbackCapabilities.Channels.Minimum, playbackCapabilities.Channels.Maximum,
+		captureCapabilities.Rate.Minimum, captureCapabilities.Rate.Maximum)
+	if captureCapabilities.Channels.Minimum != 1 || captureCapabilities.Channels.Maximum != 1 {
+		t.Fatalf("unexpected capture channels: %#v", captureCapabilities.Channels)
+	}
+	if playbackCapabilities.Channels.Minimum > 2 || playbackCapabilities.Channels.Maximum < 2 {
+		t.Fatalf("playback does not expose stereo: %#v", playbackCapabilities.Channels)
+	}
 
 	captureConfig := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: 1, Rate: rate, PeriodFrames: periodFrames, BufferFrames: bufferFrames}
 	playbackConfig := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: 2, Rate: rate, PeriodFrames: periodFrames, BufferFrames: bufferFrames}
