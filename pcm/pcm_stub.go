@@ -48,3 +48,6 @@ func (*Handle) syncHardware() error            { return alsa.ErrUnsupportedPlatf
 func (*Handle) transferInterleaved(context.Context, []int16, bool) (int, error) {
 	return 0, alsa.ErrUnsupportedPlatform
 }
+func (*Handle) transferInterleavedBytes(context.Context, []byte, bool) (int, error) {
+	return 0, alsa.ErrUnsupportedPlatform
+}

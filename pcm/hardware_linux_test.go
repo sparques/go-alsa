@@ -23,7 +23,6 @@ func TestOpenHardware(t *testing.T) {
 	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
 		stream = alsa.Capture
 	}
-
 	handle, err := OpenHardware(name, stream)
 	if err != nil {
 		t.Fatalf("OpenHardware(%q, %s): %v", name, stream, err)
@@ -150,12 +149,16 @@ func TestTransferHardware(t *testing.T) {
 	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
 		stream = alsa.Capture
 	}
+	format := S16LE
+	if os.Getenv("GO_ALSA_TEST_FORMAT") == "s32le" {
+		format = S32LE
+	}
 	handle, err := OpenHardware(name, stream)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer handle.Close()
-	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800}
+	config := HardwareConfig{Access: RWInterleaved, Format: format, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800}
 	if _, err := handle.ConfigureHardware(config); err != nil {
 		t.Fatal(err)
 	}
@@ -165,12 +168,13 @@ func TestTransferHardware(t *testing.T) {
 	if err := handle.Prepare(); err != nil {
 		t.Fatal(err)
 	}
-	samples := make([]int16, config.PeriodFrames*config.Channels)
+	bytesPerSample, _ := config.Format.PhysicalBytes()
+	buffer := make([]byte, config.PeriodFrames*config.Channels*bytesPerSample)
 	if stream == alsa.Capture {
 		if err := handle.Start(); err != nil {
 			t.Fatal(err)
 		}
-		frames, err := handle.ReadInterleaved(t.Context(), samples)
+		frames, err := handle.ReadInterleavedBytes(t.Context(), buffer)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -179,7 +183,7 @@ func TestTransferHardware(t *testing.T) {
 		}
 		return
 	}
-	frames, err := handle.WriteInterleaved(t.Context(), samples)
+	frames, err := handle.WriteInterleavedBytes(t.Context(), buffer)
 	if err != nil {
 		t.Fatal(err)
 	}

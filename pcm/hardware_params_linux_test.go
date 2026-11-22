@@ -94,3 +94,22 @@ func TestAccessAndFormatStrings(t *testing.T) {
 		t.Fatal("unexpected format string")
 	}
 }
+
+func TestFormatPhysicalBytes(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		format Format
+		bytes  int
+	}{
+		{S8, 1}, {S16LE, 2}, {S24_3LE, 3}, {S24LE, 4}, {S32LE, 4},
+	}
+	for _, test := range tests {
+		got, ok := test.format.PhysicalBytes()
+		if !ok || got != test.bytes {
+			t.Errorf("%s PhysicalBytes = %d, %t; want %d, true", test.format, got, ok, test.bytes)
+		}
+	}
+	if _, ok := Format(99).PhysicalBytes(); ok {
+		t.Fatal("unknown format has a physical width")
+	}
+}

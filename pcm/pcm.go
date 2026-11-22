@@ -129,6 +129,18 @@ func (h *Handle) WriteInterleaved(ctx context.Context, samples []int16) (int, er
 	return h.transferInterleaved(ctx, samples, false)
 }
 
+// ReadInterleavedBytes captures whole frames in the configured physical sample
+// representation. The buffer length must be divisible by physical frame size.
+func (h *Handle) ReadInterleavedBytes(ctx context.Context, buffer []byte) (int, error) {
+	return h.transferInterleavedBytes(ctx, buffer, true)
+}
+
+// WriteInterleavedBytes plays whole frames in the configured physical sample
+// representation. The buffer length must be divisible by physical frame size.
+func (h *Handle) WriteInterleavedBytes(ctx context.Context, buffer []byte) (int, error) {
+	return h.transferInterleavedBytes(ctx, buffer, false)
+}
+
 // Access identifies how application frames are transferred.
 type Access int32
 
@@ -195,6 +207,24 @@ func (f Format) String() string {
 		return name
 	}
 	return "UNKNOWN"
+}
+
+// PhysicalBytes returns the number of bytes occupied by one sample in memory.
+// ALSA's S24_LE/U24_LE formats use four-byte containers; the *_3 variants are
+// the packed three-byte representations.
+func (f Format) PhysicalBytes() (int, bool) {
+	switch f {
+	case S8, U8:
+		return 1, true
+	case S16LE, S16BE, U16LE, U16BE:
+		return 2, true
+	case S24_3LE, S24_3BE, U24_3LE, U24_3BE:
+		return 3, true
+	case S24LE, S24BE, U24LE, U24BE, S32LE, S32BE, U32LE, U32BE:
+		return 4, true
+	default:
+		return 0, false
+	}
 }
 
 // Range describes one kernel hardware-parameter interval. OpenMinimum and

@@ -337,15 +337,45 @@ func (h *Handle) transferInterleaved(ctx context.Context, samples []int16, read 
 		return 0, nil
 	}
 	h.mu.Lock()
+	if h.hardware == nil {
+		h.mu.Unlock()
+		return 0, fmt.Errorf("%w: configure hardware before transfer", ErrState)
+	}
+	if h.hardware.Format != S16LE {
+		h.mu.Unlock()
+		return 0, errors.New("alsa pcm: []int16 transfer requires S16_LE hardware format")
+	}
+	h.mu.Unlock()
+	frames, err := h.transferBuffer(ctx, uintptr(unsafe.Pointer(unsafe.SliceData(samples))), len(samples)*2, read)
+	runtime.KeepAlive(samples)
+	return frames, err
+}
+
+func (h *Handle) transferInterleavedBytes(ctx context.Context, buffer []byte, read bool) (int, error) {
+	if len(buffer) == 0 {
+		return 0, nil
+	}
+	frames, err := h.transferBuffer(ctx, uintptr(unsafe.Pointer(unsafe.SliceData(buffer))), len(buffer), read)
+	runtime.KeepAlive(buffer)
+	return frames, err
+}
+
+func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength int, read bool) (int, error) {
+	h.mu.Lock()
 	if !h.prepared || h.hardware == nil {
 		h.mu.Unlock()
 		return 0, fmt.Errorf("%w: prepare before transfer", ErrState)
 	}
 	channels := h.hardware.Channels
+	bytesPerSample, supportedFormat := h.hardware.Format.PhysicalBytes()
 	stream := h.stream
 	h.mu.Unlock()
-	if len(samples)%channels != 0 {
-		return 0, errors.New("alsa pcm: sample buffer does not contain whole frames")
+	if !supportedFormat {
+		return 0, errors.New("alsa pcm: configured format has no byte-transfer representation")
+	}
+	frameBytes := channels * bytesPerSample
+	if byteLength%frameBytes != 0 {
+		return 0, errors.New("alsa pcm: byte buffer does not contain whole frames")
 	}
 	if read && stream != streamCapture || !read && stream != streamPlayback {
 		return 0, ErrDirection
@@ -360,15 +390,14 @@ func (h *Handle) transferInterleaved(ctx context.Context, samples []int16, read 
 		events = unix.POLLIN
 	}
 	transfer := uapi.PCMXferI{
-		Buffer: uintptr(unsafe.Pointer(unsafe.SliceData(samples))),
-		Frames: uint64(len(samples) / channels),
+		Buffer: buffer,
+		Frames: uint64(byteLength / frameBytes),
 	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
 		err := h.core.fd.Ioctl(request, unsafe.Pointer(&transfer))
-		runtime.KeepAlive(samples)
 		if err == nil {
 			if transfer.Result < 0 || uint64(transfer.Result) > transfer.Frames {
 				return 0, fmt.Errorf("alsa pcm: kernel returned invalid frame count %d", transfer.Result)
@@ -451,7 +480,7 @@ func validateHardwareConfig(config HardwareConfig) error {
 	if config.Access != RWInterleaved {
 		return fmt.Errorf("alsa pcm: unsupported access %d", config.Access)
 	}
-	if config.Format != S16LE {
+	if _, ok := config.Format.PhysicalBytes(); !ok {
 		return fmt.Errorf("alsa pcm: unsupported format %d", config.Format)
 	}
 	if config.Channels <= 0 || config.Rate <= 0 || config.PeriodFrames <= 0 || config.BufferFrames <= 0 {
