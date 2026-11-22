@@ -57,3 +57,35 @@ func TestCardsSmoke(t *testing.T) {
 		}
 	}
 }
+
+func TestPCMsSmoke(t *testing.T) {
+	pcms, err := PCMs()
+	if err != nil {
+		t.Fatalf("PCMs() error = %v", err)
+	}
+	for _, pcm := range pcms {
+		if pcm.Card < 0 || pcm.Device < 0 || pcm.ID == "" || pcm.Name == "" || pcm.Path == "" {
+			t.Errorf("invalid PCM: %#v", pcm)
+		}
+		if pcm.Stream != Playback && pcm.Stream != Capture {
+			t.Errorf("invalid PCM stream: %#v", pcm)
+		}
+	}
+}
+
+func TestStreamString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		stream Stream
+		want   string
+	}{
+		{Playback, "playback"},
+		{Capture, "capture"},
+		{Stream(99), "unknown"},
+	}
+	for _, test := range tests {
+		if got := test.stream.String(); got != test.want {
+			t.Errorf("Stream(%d).String() = %q; want %q", test.stream, got, test.want)
+		}
+	}
+}

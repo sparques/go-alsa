@@ -1,5 +1,78 @@
 # go-alsa implementation plan
 
+## Progress tracker
+
+This is the canonical cross-session status list. The detailed sections below
+describe the requirements and exit criteria; check an item here only when its
+implementation and proportionate tests are present. A checked implementation
+item does not imply that its phase exit criteria have been met.
+
+- [ ] **Phase 0 — research and executable specifications**
+  - [x] Record the Linux UAPI source, licensing exception, initial protocol
+    versions, and architecture policy in `docs/uapi.md`.
+  - [ ] Complete the PCM/control UAPI inventory and compatibility matrices.
+  - [ ] Add libasound reference probes and normalized comparison fixtures.
+  - [ ] Select and document minimum Go and Linux kernel versions.
+- [ ] **Phase 1 — Linux UAPI and ioctl foundation**
+  - [x] Implement Linux ioctl encoding and compile-time/runtime layout checks
+    for the initial control and PCM discovery structures.
+  - [x] Check that the current amd64 implementation and arm64 layouts build
+    with `CGO_ENABLED=0`.
+  - [ ] Pin source headers and add the maintainer ABI generator/conformance
+    probe for every supported architecture. (A current-host conformance probe
+    now covers the checked-in discovery ABI.)
+  - [ ] Add the race-safe descriptor wrapper and deterministic syscall seams.
+  - [ ] Add context cancellation using `ppoll` and eventfd/pipe wakeups.
+  - [ ] Meet the complete Phase 1 exit criteria on amd64 and arm64.
+- [ ] **Phase 2 — discovery and direct hardware resolution**
+  - [x] Enumerate `/dev/snd/controlC*` and query card metadata with kernel
+    ioctls rather than parsing `/proc/asound`.
+  - [x] Enumerate playback/capture PCM directions, subdevice counts, and
+    availability through control ioctls.
+  - [x] Return deterministically ordered public card/PCM metadata and tolerate
+    a control device disappearing between discovery and open.
+  - [x] Parse and resolve numeric and stable-ID `hw:` names, including device,
+    subdevice, and direction selectors.
+  - [ ] Add typed errors for permissions, absent/busy devices, malformed names,
+    unsupported directions, and disconnection. (Malformed names, missing
+    devices, unavailable directions, and subdevices are implemented.)
+  - [ ] Compare enumeration with `aplay`, `arecord`, and libasound on the full
+    virtual/real hardware matrix. (The current amd64 host agrees with `aplay -l`
+    and `arecord -l` for its HDA playback/capture and USB capture devices.)
+- [ ] **Phase 3 — direct PCM engine**
+- [ ] **Phase 4 — raw control API**
+- [ ] **Phase 5 — simple mixer layer**
+- [ ] **Phase 6 — ALSA configuration language**
+- [ ] **Phase 7 — software PCM graph and conversion**
+- [ ] **Phase 8 — shared PCM plugins**
+- [ ] **External sound-server detection and extension boundary**
+- [ ] **Public API design and stability review**
+- [ ] **Testing strategy complete**
+  - [x] Add initial ioctl/layout, parsing, and hardware-optional discovery
+    tests.
+  - [x] Pass native `CGO_ENABLED=0` tests, arm64 cross-build tests, non-Linux
+    stub builds, race-enabled tests, `go vet`, and `git diff --check` for the
+    initial slices. The race detector uses cgo instrumentation, but the library
+    itself remains cgo-free.
+  - [ ] Run discovery and later streaming tests with visible ALSA hardware; the
+    current agent sandbox does not expose `/dev/snd` even when the host does.
+  - [ ] Add race, fuzz, differential, virtual-device, and hardware matrices.
+- [ ] **Performance and realtime requirements complete**
+- [ ] **Security and robustness review complete**
+- [ ] **Documentation and examples complete**
+  - [x] Add initial package README, API documentation, UAPI notes, and the
+    `alsa-info-go` kernel discovery command.
+  - [ ] Add PCM/control/mixer examples, compatibility and troubleshooting
+    documentation, migration guide, `go-amixer`, `go-aplay`, and `go-arecord`.
+- [ ] **v0.1 release gate — direct kernel foundation**
+- [ ] **v0.2 release gate — complete direct PCM and controls**
+- [ ] **v0.3 release gate — configuration and mixer**
+- [ ] **v0.4 release gate — plug and routing**
+- [ ] **v0.5 release gate — shared devices**
+- [ ] **v1.0 release gate**
+- [ ] **Downstream Vulpes integration and validation**
+- [ ] **Project management and evidence requirements continuously enforced**
+
 ## 1. Purpose and definition of done
 
 Build a Linux-only, Go-native ALSA package that talks directly to the kernel

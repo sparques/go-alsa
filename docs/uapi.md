@@ -16,6 +16,17 @@ has compile-time size assertions and ioctl-number tests. A later maintainer tool
 will compare sizes, offsets, enum values, and ioctl numbers with pinned headers
 on every supported architecture.
 
+Run the current-host comparison with:
+
+```sh
+go run ./tools/abi-probe
+```
+
+The tool compiles an embedded C probe in a temporary directory, runs it, and
+compares its results with `internal/uapi`. It is a maintainer check only: the
+library and its normal test/build path remain independent of a C compiler and
+system ALSA headers.
+
 ## Architecture policy
 
 Only amd64 and arm64 are initially enabled. Both use 64-bit `long`, pointers,
@@ -26,14 +37,14 @@ must pass the conformance probe described in `plan.md`.
 
 ## Initial inventory
 
-The control discovery slice uses:
+The control and PCM discovery slice uses:
 
 - `SNDRV_CTL_IOCTL_PVERSION` with a 32-bit integer.
 - `SNDRV_CTL_IOCTL_CARD_INFO` with `snd_ctl_card_info`.
+- `SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE` to walk kernel PCM device numbers.
+- `SNDRV_CTL_IOCTL_PCM_INFO` with `snd_pcm_info` for each stream direction.
 
-PCM discovery will next add `snd_pcm_info`,
-`SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE`, and `SNDRV_CTL_IOCTL_PCM_INFO`. Streaming
-requires the substantially larger `snd_pcm_hw_params`, `snd_pcm_sw_params`,
+Streaming requires the substantially larger `snd_pcm_hw_params`, `snd_pcm_sw_params`,
 transfer, status, sync-pointer, and channel-area structures. Those definitions
 will be introduced with their corresponding behavioral tests rather than as an
 untested bulk transcription.
