@@ -43,6 +43,8 @@ The control and PCM discovery slice uses:
 - `SNDRV_CTL_IOCTL_CARD_INFO` with `snd_ctl_card_info`.
 - `SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE` to walk kernel PCM device numbers.
 - `SNDRV_CTL_IOCTL_PCM_INFO` with `snd_pcm_info` for each stream direction.
+- `SNDRV_PCM_IOCTL_PVERSION` and `SNDRV_PCM_IOCTL_INFO` when opening a direct
+  kernel PCM handle.
 
 Streaming requires the substantially larger `snd_pcm_hw_params`, `snd_pcm_sw_params`,
 transfer, status, sync-pointer, and channel-area structures. Those definitions

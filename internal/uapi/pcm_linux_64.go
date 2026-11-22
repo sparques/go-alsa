@@ -6,6 +6,7 @@ import "unsafe"
 
 const (
 	PCMProtocolVersion = 2<<16 | 0<<8 | 18
+	pcmIoctlType       = uintptr('A')
 
 	PCMStreamPlayback = int32(0)
 	PCMStreamCapture  = int32(1)
@@ -29,6 +30,9 @@ type PCMInfo struct {
 }
 
 const (
+	PCMIoctlProtocolVersion = uintptr(0x80044100)
+	PCMIoctlInfo            = uintptr(0x81204101)
+
 	ControlIoctlPCMNextDevice = uintptr(0x80045530)
 	ControlIoctlPCMInfo       = uintptr(0xc1205531)
 )

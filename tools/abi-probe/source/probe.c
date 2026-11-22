@@ -14,6 +14,8 @@ int main(void) {
 	VALUE("control_pversion_ioctl", SNDRV_CTL_IOCTL_PVERSION);
 	VALUE("control_card_info_ioctl", SNDRV_CTL_IOCTL_CARD_INFO);
 	VALUE("pcm_protocol", SNDRV_PCM_VERSION);
+	VALUE("pcm_pversion_ioctl", SNDRV_PCM_IOCTL_PVERSION);
+	VALUE("pcm_info_ioctl", SNDRV_PCM_IOCTL_INFO);
 	VALUE("pcm_info_size", sizeof(struct snd_pcm_info));
 	VALUE("pcm_subdevices_offset", offsetof(struct snd_pcm_info, subdevices_count));
 	VALUE("control_pcm_next_ioctl", SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE);

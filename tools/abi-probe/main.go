@@ -68,6 +68,8 @@ func run() error {
 		"control_pversion_ioctl":    uint64(uapi.ControlIoctlProtocolVersion),
 		"control_card_info_ioctl":   uint64(uapi.ControlIoctlCardInfo),
 		"pcm_protocol":              uapi.PCMProtocolVersion,
+		"pcm_pversion_ioctl":        uint64(uapi.PCMIoctlProtocolVersion),
+		"pcm_info_ioctl":            uint64(uapi.PCMIoctlInfo),
 		"pcm_info_size":             uint64(unsafe.Sizeof(uapi.PCMInfo{})),
 		"pcm_subdevices_offset":     uint64(unsafe.Offsetof(uapi.PCMInfo{}.SubdevicesCount)),
 		"control_pcm_next_ioctl":    uint64(uapi.ControlIoctlPCMNextDevice),

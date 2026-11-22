@@ -17,6 +17,16 @@ func TestPCMDiscoveryIoctlEncoding(t *testing.T) {
 	}
 }
 
+func TestPCMHandleIoctlEncoding(t *testing.T) {
+	t.Parallel()
+	if got := ior(pcmIoctlType, 0x00, unsafe.Sizeof(int32(0))); got != PCMIoctlProtocolVersion {
+		t.Fatalf("PCM protocol ioctl = %#x; want %#x", got, PCMIoctlProtocolVersion)
+	}
+	if got := ior(pcmIoctlType, 0x01, unsafe.Sizeof(PCMInfo{})); got != PCMIoctlInfo {
+		t.Fatalf("PCM info ioctl = %#x; want %#x", got, PCMIoctlInfo)
+	}
+}
+
 func TestPCMInfoLayout(t *testing.T) {
 	t.Parallel()
 	if got := unsafe.Sizeof(PCMInfo{}); got != 288 {

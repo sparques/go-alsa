@@ -22,6 +22,8 @@ item does not imply that its phase exit criteria have been met.
     probe for every supported architecture. (A current-host conformance probe
     now covers the checked-in discovery ABI.)
   - [ ] Add the race-safe descriptor wrapper and deterministic syscall seams.
+    (Implemented for nonblocking ioctl handles; poll/read/write integration is
+    still pending.)
   - [ ] Add context cancellation using `ppoll` and eventfd/pipe wakeups.
   - [ ] Meet the complete Phase 1 exit criteria on amd64 and arm64.
 - [ ] **Phase 2 — discovery and direct hardware resolution**
@@ -40,6 +42,10 @@ item does not imply that its phase exit criteria have been met.
     virtual/real hardware matrix. (The current amd64 host agrees with `aplay -l`
     and `arecord -l` for its HDA playback/capture and USB capture devices.)
 - [ ] **Phase 3 — direct PCM engine**
+  - [x] Open a resolved direct PCM nonblocking, check its protocol major, query
+    stream metadata, enforce direction, and close it idempotently. An opt-in
+    hardware test covers this path without configuring or transferring audio.
+  - [ ] Implement hardware/software parameter negotiation and streaming.
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**
