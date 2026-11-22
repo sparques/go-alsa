@@ -46,6 +46,8 @@ item does not imply that its phase exit criteria have been met.
     stream metadata, enforce direction, and close it idempotently. An opt-in
     hardware test covers this path without configuring or transferring audio.
   - [ ] Implement hardware/software parameter negotiation and streaming.
+    (Exact S16_LE, RW-interleaved hardware constraints, software defaults, and
+    prepare are implemented; transfers and broader negotiation remain.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**

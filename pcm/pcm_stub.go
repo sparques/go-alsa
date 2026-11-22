@@ -11,3 +11,17 @@ func OpenHardware(string, alsa.Stream) (*Handle, error) {
 }
 
 func (*handleCore) close() error { return nil }
+
+func (*Handle) ConfigureHardware(HardwareConfig) (HardwareSetup, error) {
+	return HardwareSetup{}, alsa.ErrUnsupportedPlatform
+}
+
+func (*Handle) ConfigureSoftware(SoftwareConfig) (SoftwareSetup, error) {
+	return SoftwareSetup{}, alsa.ErrUnsupportedPlatform
+}
+
+func (*Handle) ConfigureSoftwareDefaults() (SoftwareSetup, error) {
+	return SoftwareSetup{}, alsa.ErrUnsupportedPlatform
+}
+
+func (*Handle) Prepare() error { return alsa.ErrUnsupportedPlatform }

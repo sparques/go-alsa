@@ -40,3 +40,38 @@ func TestOpenHardware(t *testing.T) {
 		t.Errorf("second Close: %v", err)
 	}
 }
+
+func TestConfigureHardware(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_PCM")
+	if name == "" || os.Getenv("GO_ALSA_TEST_CONFIGURE") != "1" {
+		t.Skip("set GO_ALSA_TEST_PCM and GO_ALSA_TEST_CONFIGURE=1")
+	}
+	stream := alsa.Playback
+	channels := 2
+	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
+		stream = alsa.Capture
+	}
+	handle, err := OpenHardware(name, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: channels, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800}
+	setup, err := handle.ConfigureHardware(config)
+	if err != nil {
+		t.Fatalf("ConfigureHardware: %v", err)
+	}
+	if setup.Access != config.Access || setup.Format != config.Format || setup.Channels != config.Channels || setup.Rate != config.Rate {
+		t.Errorf("setup = %#v; requested %#v", setup, config)
+	}
+	software, err := handle.ConfigureSoftwareDefaults()
+	if err != nil {
+		t.Fatalf("ConfigureSoftwareDefaults: %v", err)
+	}
+	if software.AvailableMinimum != setup.PeriodFrames || software.Boundary <= uint64(setup.BufferFrames) {
+		t.Errorf("software setup = %#v", software)
+	}
+	if err := handle.Prepare(); err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+}

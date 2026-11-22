@@ -50,3 +50,8 @@ Streaming requires the substantially larger `snd_pcm_hw_params`, `snd_pcm_sw_par
 transfer, status, sync-pointer, and channel-area structures. Those definitions
 will be introduced with their corresponding behavioral tests rather than as an
 untested bulk transcription.
+
+The first streaming-related definition, `snd_pcm_hw_params`, is now checked for
+size and critical offsets and used for exact S16_LE interleaved hardware
+negotiation. Software parameters, transfers, status, synchronization pointers,
+and channel areas remain pending.
