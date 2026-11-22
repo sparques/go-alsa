@@ -30,3 +30,23 @@ func TestRecoveryPolicyValidation(t *testing.T) {
 		t.Fatal("invalid recovery policy succeeded")
 	}
 }
+
+func TestNonInterleavedBufferValidation(t *testing.T) {
+	t.Parallel()
+	handle := &Handle{
+		prepared: true,
+		hardware: &HardwareSetup{HardwareConfig: HardwareConfig{Access: RWNonInterleaved, Format: S16LE, Channels: 2}},
+		stream:   streamPlayback,
+	}
+	tests := [][][]byte{
+		nil,
+		{{0, 0}},
+		{{0}, {0}},
+		{{0, 0}, {0, 0, 0, 0}},
+	}
+	for _, channels := range tests {
+		if _, err := handle.WriteNonInterleavedBytes(context.Background(), channels); err == nil {
+			t.Errorf("WriteNonInterleavedBytes(%v) succeeded", channels)
+		}
+	}
+}

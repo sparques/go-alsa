@@ -98,6 +98,15 @@ func TestPCMTransferLayoutAndIoctls(t *testing.T) {
 	if got := ior(pcmIoctlType, 0x51, unsafe.Sizeof(PCMXferI{})); got != PCMIoctlReadInterleaved {
 		t.Fatalf("READI ioctl = %#x; want %#x", got, PCMIoctlReadInterleaved)
 	}
+	if got := unsafe.Sizeof(PCMXferN{}); got != 24 {
+		t.Fatalf("sizeof(PCMXferN) = %d; want 24", got)
+	}
+	if got := iow(pcmIoctlType, 0x52, unsafe.Sizeof(PCMXferN{})); got != PCMIoctlWriteNonInterleaved {
+		t.Fatalf("WRITEN ioctl = %#x; want %#x", got, PCMIoctlWriteNonInterleaved)
+	}
+	if got := ior(pcmIoctlType, 0x53, unsafe.Sizeof(PCMXferN{})); got != PCMIoctlReadNonInterleaved {
+		t.Fatalf("READN ioctl = %#x; want %#x", got, PCMIoctlReadNonInterleaved)
+	}
 }
 
 func TestPCMStatusLayoutAndIoctls(t *testing.T) {

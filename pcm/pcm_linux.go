@@ -368,10 +368,14 @@ func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength 
 	}
 	channels := h.hardware.Channels
 	bytesPerSample, supportedFormat := h.hardware.Format.PhysicalBytes()
+	access := h.hardware.Access
 	stream := h.stream
 	h.mu.Unlock()
 	if !supportedFormat {
 		return 0, errors.New("alsa pcm: configured format has no byte-transfer representation")
+	}
+	if access != RWInterleaved {
+		return 0, errors.New("alsa pcm: interleaved transfer requires RW_INTERLEAVED access")
 	}
 	frameBytes := channels * bytesPerSample
 	if byteLength%frameBytes != 0 {
@@ -398,6 +402,103 @@ func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength 
 			return 0, err
 		}
 		err := h.core.fd.Ioctl(request, unsafe.Pointer(&transfer))
+		if err == nil {
+			if transfer.Result < 0 || uint64(transfer.Result) > transfer.Frames {
+				return 0, fmt.Errorf("alsa pcm: kernel returned invalid frame count %d", transfer.Result)
+			}
+			return int(transfer.Result), nil
+		}
+		if errors.Is(err, syscall.EPIPE) {
+			h.mu.Lock()
+			if read {
+				h.overruns++
+			} else {
+				h.underruns++
+			}
+			policy := h.recovery
+			h.prepared = false
+			h.mu.Unlock()
+			if policy == RecoveryStrict {
+				return 0, fmt.Errorf("%w: %w", ErrXRUN, err)
+			}
+			if err := h.recoverXRUN(read); err != nil {
+				return 0, err
+			}
+			continue
+		}
+		if !errors.Is(err, syscall.EAGAIN) {
+			return 0, fmt.Errorf("alsa pcm: transfer: %w", err)
+		}
+		revents, err := h.core.fd.Wait(ctx, events)
+		if err != nil {
+			return 0, err
+		}
+		if revents&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
+			return 0, fmt.Errorf("alsa pcm: poll reported stream error %#x", revents)
+		}
+	}
+}
+
+func (h *Handle) transferNonInterleavedBytes(ctx context.Context, channels [][]byte, read bool) (int, error) {
+	if len(channels) == 0 {
+		return 0, errors.New("alsa pcm: non-interleaved transfer needs channel buffers")
+	}
+	h.mu.Lock()
+	if !h.prepared || h.hardware == nil {
+		h.mu.Unlock()
+		return 0, fmt.Errorf("%w: prepare before transfer", ErrState)
+	}
+	wantChannels := h.hardware.Channels
+	bytesPerSample, supportedFormat := h.hardware.Format.PhysicalBytes()
+	access := h.hardware.Access
+	stream := h.stream
+	h.mu.Unlock()
+	if access != RWNonInterleaved {
+		return 0, errors.New("alsa pcm: non-interleaved transfer requires RW_NONINTERLEAVED access")
+	}
+	if !supportedFormat {
+		return 0, errors.New("alsa pcm: configured format has no byte-transfer representation")
+	}
+	if len(channels) != wantChannels {
+		return 0, fmt.Errorf("alsa pcm: got %d channel buffers, need %d", len(channels), wantChannels)
+	}
+	byteLength := len(channels[0])
+	if byteLength == 0 {
+		return 0, nil
+	}
+	if byteLength%bytesPerSample != 0 {
+		return 0, errors.New("alsa pcm: channel buffer does not contain whole samples")
+	}
+	pointers := make([]uintptr, len(channels))
+	for index, channel := range channels {
+		if len(channel) != byteLength {
+			return 0, errors.New("alsa pcm: non-interleaved channel buffers have different lengths")
+		}
+		pointers[index] = uintptr(unsafe.Pointer(unsafe.SliceData(channel)))
+	}
+	if read && stream != streamCapture || !read && stream != streamPlayback {
+		return 0, ErrDirection
+	}
+
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	request := uapi.PCMIoctlWriteNonInterleaved
+	events := int16(unix.POLLOUT)
+	if read {
+		request = uapi.PCMIoctlReadNonInterleaved
+		events = unix.POLLIN
+	}
+	transfer := uapi.PCMXferN{
+		Buffers: uintptr(unsafe.Pointer(unsafe.SliceData(pointers))),
+		Frames:  uint64(byteLength / bytesPerSample),
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		err := h.core.fd.Ioctl(request, unsafe.Pointer(&transfer))
+		runtime.KeepAlive(channels)
+		runtime.KeepAlive(pointers)
 		if err == nil {
 			if transfer.Result < 0 || uint64(transfer.Result) > transfer.Frames {
 				return 0, fmt.Errorf("alsa pcm: kernel returned invalid frame count %d", transfer.Result)
@@ -477,7 +578,7 @@ func ringBoundary(bufferFrames uint64) uint64 {
 }
 
 func validateHardwareConfig(config HardwareConfig) error {
-	if config.Access != RWInterleaved {
+	if config.Access != RWInterleaved && config.Access != RWNonInterleaved {
 		return fmt.Errorf("alsa pcm: unsupported access %d", config.Access)
 	}
 	if _, ok := config.Format.PhysicalBytes(); !ok {

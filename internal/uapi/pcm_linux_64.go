@@ -112,6 +112,13 @@ type PCMXferI struct {
 	Frames uint64
 }
 
+// PCMXferN matches struct snd_xfern for non-interleaved frame transfers.
+type PCMXferN struct {
+	Result  int64
+	Buffers uintptr
+	Frames  uint64
+}
+
 type Timespec struct {
 	Seconds     int64
 	Nanoseconds int64
@@ -139,26 +146,28 @@ type PCMStatus struct {
 }
 
 const (
-	PCMIoctlProtocolVersion  = uintptr(0x80044100)
-	PCMIoctlInfo             = uintptr(0x81204101)
-	PCMIoctlHWRefine         = uintptr(0xc2604110)
-	PCMIoctlHWParams         = uintptr(0xc2604111)
-	PCMIoctlHWFree           = uintptr(0x00004112)
-	PCMIoctlSWParams         = uintptr(0xc0884113)
-	PCMIoctlStatus           = uintptr(0x80984120)
-	PCMIoctlDelay            = uintptr(0x80084121)
-	PCMIoctlHWSync           = uintptr(0x00004122)
-	PCMIoctlPrepare          = uintptr(0x00004140)
-	PCMIoctlReset            = uintptr(0x00004141)
-	PCMIoctlStart            = uintptr(0x00004142)
-	PCMIoctlDrop             = uintptr(0x00004143)
-	PCMIoctlDrain            = uintptr(0x00004144)
-	PCMIoctlPause            = uintptr(0x40044145)
-	PCMIoctlRewind           = uintptr(0x40084146)
-	PCMIoctlResume           = uintptr(0x00004147)
-	PCMIoctlForward          = uintptr(0x40084149)
-	PCMIoctlWriteInterleaved = uintptr(0x40184150)
-	PCMIoctlReadInterleaved  = uintptr(0x80184151)
+	PCMIoctlProtocolVersion     = uintptr(0x80044100)
+	PCMIoctlInfo                = uintptr(0x81204101)
+	PCMIoctlHWRefine            = uintptr(0xc2604110)
+	PCMIoctlHWParams            = uintptr(0xc2604111)
+	PCMIoctlHWFree              = uintptr(0x00004112)
+	PCMIoctlSWParams            = uintptr(0xc0884113)
+	PCMIoctlStatus              = uintptr(0x80984120)
+	PCMIoctlDelay               = uintptr(0x80084121)
+	PCMIoctlHWSync              = uintptr(0x00004122)
+	PCMIoctlPrepare             = uintptr(0x00004140)
+	PCMIoctlReset               = uintptr(0x00004141)
+	PCMIoctlStart               = uintptr(0x00004142)
+	PCMIoctlDrop                = uintptr(0x00004143)
+	PCMIoctlDrain               = uintptr(0x00004144)
+	PCMIoctlPause               = uintptr(0x40044145)
+	PCMIoctlRewind              = uintptr(0x40084146)
+	PCMIoctlResume              = uintptr(0x00004147)
+	PCMIoctlForward             = uintptr(0x40084149)
+	PCMIoctlWriteInterleaved    = uintptr(0x40184150)
+	PCMIoctlReadInterleaved     = uintptr(0x80184151)
+	PCMIoctlWriteNonInterleaved = uintptr(0x40184152)
+	PCMIoctlReadNonInterleaved  = uintptr(0x80184153)
 
 	ControlIoctlPCMNextDevice = uintptr(0x80045530)
 	ControlIoctlPCMInfo       = uintptr(0xc1205531)
@@ -173,6 +182,8 @@ var (
 	_ [unsafe.Sizeof(PCMSWParams{}) - 136]byte
 	_ [24 - unsafe.Sizeof(PCMXferI{})]byte
 	_ [unsafe.Sizeof(PCMXferI{}) - 24]byte
+	_ [24 - unsafe.Sizeof(PCMXferN{})]byte
+	_ [unsafe.Sizeof(PCMXferN{}) - 24]byte
 	_ [152 - unsafe.Sizeof(PCMStatus{})]byte
 	_ [unsafe.Sizeof(PCMStatus{}) - 152]byte
 )

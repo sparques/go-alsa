@@ -53,8 +53,9 @@ item does not imply that its phase exit criteria have been met.
     are implemented; reset, pause/resume, rewind/forward, and hardware sync are
     exposed; unconstrained access/format/interval capability discovery is
     implemented; byte-oriented transfers support common 8/16/24/32-bit integer
-    layouts while typed transfers remain available for S16_LE; broader
-    negotiation and remaining lifecycle operations remain.)
+    layouts with interleaved and non-interleaved RW access, while typed
+    transfers remain available for interleaved S16_LE; broader negotiation and
+    remaining lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**

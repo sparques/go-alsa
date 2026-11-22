@@ -51,3 +51,6 @@ func (*Handle) transferInterleaved(context.Context, []int16, bool) (int, error) 
 func (*Handle) transferInterleavedBytes(context.Context, []byte, bool) (int, error) {
 	return 0, alsa.ErrUnsupportedPlatform
 }
+func (*Handle) transferNonInterleavedBytes(context.Context, [][]byte, bool) (int, error) {
+	return 0, alsa.ErrUnsupportedPlatform
+}

@@ -33,6 +33,9 @@ int main(void) {
 	VALUE("pcm_xferi_size", sizeof(struct snd_xferi));
 	VALUE("pcm_writei_ioctl", SNDRV_PCM_IOCTL_WRITEI_FRAMES);
 	VALUE("pcm_readi_ioctl", SNDRV_PCM_IOCTL_READI_FRAMES);
+	VALUE("pcm_xfern_size", sizeof(struct snd_xfern));
+	VALUE("pcm_writen_ioctl", SNDRV_PCM_IOCTL_WRITEN_FRAMES);
+	VALUE("pcm_readn_ioctl", SNDRV_PCM_IOCTL_READN_FRAMES);
 	VALUE("pcm_status_size", sizeof(struct snd_pcm_status));
 	VALUE("pcm_status_appl_offset", offsetof(struct snd_pcm_status, appl_ptr));
 	VALUE("pcm_status_audio_offset", offsetof(struct snd_pcm_status, audio_tstamp));

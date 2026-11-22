@@ -141,6 +141,18 @@ func (h *Handle) WriteInterleavedBytes(ctx context.Context, buffer []byte) (int,
 	return h.transferInterleavedBytes(ctx, buffer, false)
 }
 
+// ReadNonInterleavedBytes captures frames into one physical-sample byte buffer
+// per configured channel. Every channel buffer must have the same length.
+func (h *Handle) ReadNonInterleavedBytes(ctx context.Context, channels [][]byte) (int, error) {
+	return h.transferNonInterleavedBytes(ctx, channels, true)
+}
+
+// WriteNonInterleavedBytes plays frames from one physical-sample byte buffer
+// per configured channel. Every channel buffer must have the same length.
+func (h *Handle) WriteNonInterleavedBytes(ctx context.Context, channels [][]byte) (int, error) {
+	return h.transferNonInterleavedBytes(ctx, channels, false)
+}
+
 // Access identifies how application frames are transferred.
 type Access int32
 
