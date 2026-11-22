@@ -49,7 +49,8 @@ item does not imply that its phase exit criteria have been met.
   - [ ] Implement hardware/software parameter negotiation and streaming.
     (Exact S16_LE, RW-interleaved hardware constraints, software defaults, and
     prepare are implemented; initial nonblocking interleaved transfers and
-    strict XRUN reporting are in progress.)
+    strict/automatic XRUN recovery are implemented; broader negotiation and
+    lifecycle operations, including state-aware drain, remain.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**
@@ -64,8 +65,12 @@ item does not imply that its phase exit criteria have been met.
     stub builds, race-enabled tests, `go vet`, and `git diff --check` for the
     initial slices. The race detector uses cgo instrumentation, but the library
     itself remains cgo-free.
-  - [ ] Run discovery and later streaming tests with visible ALSA hardware; the
-    current agent sandbox does not expose `/dev/snd` even when the host does.
+  - [ ] Complete the planned discovery and streaming hardware matrix. Hardware
+    tests run through explicit host-access approval because the normal agent
+    sandbox does not expose `/dev/snd`.
+  - [x] Run an opt-in one-second analog loopback on the C-Media USB card using
+    simultaneous stereo playback and mono capture; verify the expected tone is
+    dominant and both stream XRUN counters remain zero.
   - [ ] Add race, fuzz, differential, virtual-device, and hardware matrices.
 - [ ] **Performance and realtime requirements complete**
 - [ ] **Security and robustness review complete**

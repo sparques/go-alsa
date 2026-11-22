@@ -3,8 +3,11 @@
 package pcm
 
 import (
+	"errors"
 	"os"
+	"syscall"
 	"testing"
+	"time"
 
 	alsa "github.com/sparques/go-alsa"
 )
@@ -41,6 +44,59 @@ func TestOpenHardware(t *testing.T) {
 	}
 }
 
+func TestCaptureXRUNRecovery(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_PCM")
+	if name == "" || os.Getenv("GO_ALSA_TEST_XRUN") != "1" || os.Getenv("GO_ALSA_TEST_PCM_STREAM") != "capture" {
+		t.Skip("set a capture GO_ALSA_TEST_PCM, GO_ALSA_TEST_PCM_STREAM=capture, and GO_ALSA_TEST_XRUN=1")
+	}
+	handle, err := OpenHardware(name, alsa.Capture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 960}
+	if _, err := handle.ConfigureHardware(config); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handle.ConfigureSoftwareDefaults(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Start(); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	samples := make([]int16, config.PeriodFrames*config.Channels)
+	if _, err := handle.ReadInterleaved(t.Context(), samples); !errors.Is(err, ErrXRUN) || !errors.Is(err, syscall.EPIPE) {
+		t.Fatalf("strict read error = %v; want ErrXRUN and EPIPE", err)
+	}
+	if got := handle.Stats().Overruns; got != 1 {
+		t.Fatalf("overruns = %d; want 1", got)
+	}
+	if err := handle.SetRecoveryPolicy(RecoveryAutomatic); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Start(); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	frames, err := handle.ReadInterleaved(t.Context(), samples)
+	if err != nil {
+		t.Fatalf("automatic recovery read: %v", err)
+	}
+	if frames <= 0 {
+		t.Fatalf("automatic recovery frames = %d", frames)
+	}
+	if got := handle.Stats().Overruns; got < 2 {
+		t.Fatalf("overruns = %d; want at least 2", got)
+	}
+}
+
 func TestConfigureHardware(t *testing.T) {
 	name := os.Getenv("GO_ALSA_TEST_PCM")
 	if name == "" || os.Getenv("GO_ALSA_TEST_CONFIGURE") != "1" {
@@ -73,6 +129,15 @@ func TestConfigureHardware(t *testing.T) {
 	}
 	if err := handle.Prepare(); err != nil {
 		t.Fatalf("Prepare: %v", err)
+	}
+	if err := handle.Drop(); err != nil {
+		t.Fatalf("Drop: %v", err)
+	}
+	if err := handle.FreeHardware(); err != nil {
+		t.Fatalf("FreeHardware: %v", err)
+	}
+	if err := handle.FreeHardware(); err != nil {
+		t.Fatalf("second FreeHardware: %v", err)
 	}
 }
 

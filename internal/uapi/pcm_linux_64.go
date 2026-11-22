@@ -118,6 +118,8 @@ const (
 	PCMIoctlSWParams         = uintptr(0xc0884113)
 	PCMIoctlPrepare          = uintptr(0x00004140)
 	PCMIoctlStart            = uintptr(0x00004142)
+	PCMIoctlDrop             = uintptr(0x00004143)
+	PCMIoctlDrain            = uintptr(0x00004144)
 	PCMIoctlWriteInterleaved = uintptr(0x40184150)
 	PCMIoctlReadInterleaved  = uintptr(0x80184151)
 

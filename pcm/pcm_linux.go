@@ -188,6 +188,34 @@ func (h *Handle) start() error {
 	return nil
 }
 
+func (h *Handle) drop() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hardware == nil {
+		return nil
+	}
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlDrop, nil); err != nil {
+		return fmt.Errorf("alsa pcm: drop: %w", err)
+	}
+	h.prepared = false
+	return nil
+}
+
+func (h *Handle) freeHardware() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hardware == nil {
+		return nil
+	}
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWFree, nil); err != nil {
+		return fmt.Errorf("alsa pcm: free hardware parameters: %w", err)
+	}
+	h.hardware = nil
+	h.software = nil
+	h.prepared = false
+	return nil
+}
+
 func (h *Handle) transferInterleaved(ctx context.Context, samples []int16, read bool) (int, error) {
 	if len(samples) == 0 {
 		return 0, nil
@@ -233,9 +261,21 @@ func (h *Handle) transferInterleaved(ctx context.Context, samples []int16, read 
 		}
 		if errors.Is(err, syscall.EPIPE) {
 			h.mu.Lock()
+			if read {
+				h.overruns++
+			} else {
+				h.underruns++
+			}
+			policy := h.recovery
 			h.prepared = false
 			h.mu.Unlock()
-			return 0, fmt.Errorf("%w: %w", ErrXRUN, err)
+			if policy == RecoveryStrict {
+				return 0, fmt.Errorf("%w: %w", ErrXRUN, err)
+			}
+			if err := h.recoverXRUN(read); err != nil {
+				return 0, err
+			}
+			continue
 		}
 		if !errors.Is(err, syscall.EAGAIN) {
 			return 0, fmt.Errorf("alsa pcm: transfer: %w", err)
@@ -248,6 +288,25 @@ func (h *Handle) transferInterleaved(ctx context.Context, samples []int16, read 
 			return 0, fmt.Errorf("alsa pcm: poll reported stream error %#x", revents)
 		}
 	}
+}
+
+func (h *Handle) recoverXRUN(capture bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hardware == nil || h.software == nil {
+		return fmt.Errorf("%w: cannot recover an unconfigured stream", ErrState)
+	}
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlPrepare, nil); err != nil {
+		return fmt.Errorf("alsa pcm: recover xrun: prepare: %w", err)
+	}
+	h.prepared = true
+	if capture {
+		if err := h.core.fd.Ioctl(uapi.PCMIoctlStart, nil); err != nil {
+			h.prepared = false
+			return fmt.Errorf("alsa pcm: recover xrun: start capture: %w", err)
+		}
+	}
+	return nil
 }
 
 func validateSoftwareConfig(config SoftwareConfig, hardware HardwareSetup) error {

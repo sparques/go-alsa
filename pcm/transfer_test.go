@@ -19,3 +19,14 @@ func TestTransferRequiresPreparedHandle(t *testing.T) {
 		t.Fatalf("Start error = %v; want ErrState", err)
 	}
 }
+
+func TestRecoveryPolicyValidation(t *testing.T) {
+	t.Parallel()
+	handle := &Handle{}
+	if err := handle.SetRecoveryPolicy(RecoveryAutomatic); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.SetRecoveryPolicy(RecoveryPolicy(99)); err == nil {
+		t.Fatal("invalid recovery policy succeeded")
+	}
+}

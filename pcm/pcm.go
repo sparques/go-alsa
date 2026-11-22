@@ -33,14 +33,52 @@ type Info struct {
 
 // Handle owns one direct kernel ALSA PCM stream.
 type Handle struct {
-	mu       sync.Mutex
-	ioMu     sync.Mutex
-	core     handleCore
-	info     Info
-	stream   streamDirection
-	hardware *HardwareSetup
-	software *SoftwareSetup
-	prepared bool
+	mu        sync.Mutex
+	ioMu      sync.Mutex
+	core      handleCore
+	info      Info
+	stream    streamDirection
+	hardware  *HardwareSetup
+	software  *SoftwareSetup
+	prepared  bool
+	recovery  RecoveryPolicy
+	overruns  uint64
+	underruns uint64
+}
+
+// RecoveryPolicy controls whether transfers report XRUNs or recover and retry.
+type RecoveryPolicy uint8
+
+const (
+	// RecoveryStrict returns ErrXRUN and leaves the stream requiring Prepare.
+	RecoveryStrict RecoveryPolicy = iota
+	// RecoveryAutomatic prepares the stream, restarts capture when needed, and
+	// retries the interrupted transfer.
+	RecoveryAutomatic
+)
+
+// Stats counts capture overruns and playback underruns observed by this handle.
+type Stats struct {
+	Overruns  uint64
+	Underruns uint64
+}
+
+// SetRecoveryPolicy changes transfer recovery behavior. Strict is the default.
+func (h *Handle) SetRecoveryPolicy(policy RecoveryPolicy) error {
+	if policy != RecoveryStrict && policy != RecoveryAutomatic {
+		return errors.New("alsa pcm: invalid recovery policy")
+	}
+	h.mu.Lock()
+	h.recovery = policy
+	h.mu.Unlock()
+	return nil
+}
+
+// Stats returns a consistent snapshot of XRUN counters.
+func (h *Handle) Stats() Stats {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return Stats{Overruns: h.overruns, Underruns: h.underruns}
 }
 
 // Info returns metadata captured when the handle was opened.
@@ -64,6 +102,14 @@ func (h *Handle) Close() error {
 // call Start before ReadInterleaved; playback normally starts automatically at
 // its configured threshold.
 func (h *Handle) Start() error { return h.start() }
+
+// Drop stops the stream immediately and discards queued frames. Call Prepare
+// before the next transfer.
+func (h *Handle) Drop() error { return h.drop() }
+
+// FreeHardware releases negotiated hardware resources and returns the stream
+// to OPEN state. It is safe when parameters have already been freed.
+func (h *Handle) FreeHardware() error { return h.freeHardware() }
 
 // ReadInterleaved captures whole S16_LE frames into samples. The sample count
 // must be divisible by the configured channel count.

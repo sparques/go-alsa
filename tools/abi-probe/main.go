@@ -82,6 +82,8 @@ func run() error {
 		"pcm_sw_params_ioctl":       uint64(uapi.PCMIoctlSWParams),
 		"pcm_prepare_ioctl":         uint64(uapi.PCMIoctlPrepare),
 		"pcm_start_ioctl":           uint64(uapi.PCMIoctlStart),
+		"pcm_drop_ioctl":            uint64(uapi.PCMIoctlDrop),
+		"pcm_drain_ioctl":           uint64(uapi.PCMIoctlDrain),
 		"pcm_xferi_size":            uint64(unsafe.Sizeof(uapi.PCMXferI{})),
 		"pcm_writei_ioctl":          uint64(uapi.PCMIoctlWriteInterleaved),
 		"pcm_readi_ioctl":           uint64(uapi.PCMIoctlReadInterleaved),

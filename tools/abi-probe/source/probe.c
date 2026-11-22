@@ -28,6 +28,8 @@ int main(void) {
 	VALUE("pcm_sw_params_ioctl", SNDRV_PCM_IOCTL_SW_PARAMS);
 	VALUE("pcm_prepare_ioctl", SNDRV_PCM_IOCTL_PREPARE);
 	VALUE("pcm_start_ioctl", SNDRV_PCM_IOCTL_START);
+	VALUE("pcm_drop_ioctl", SNDRV_PCM_IOCTL_DROP);
+	VALUE("pcm_drain_ioctl", SNDRV_PCM_IOCTL_DRAIN);
 	VALUE("pcm_xferi_size", sizeof(struct snd_xferi));
 	VALUE("pcm_writei_ioctl", SNDRV_PCM_IOCTL_WRITEI_FRAMES);
 	VALUE("pcm_readi_ioctl", SNDRV_PCM_IOCTL_READI_FRAMES);

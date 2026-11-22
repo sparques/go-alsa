@@ -38,3 +38,14 @@ if err != nil {
 }
 fmt.Println(device.PCM.Path)
 ```
+
+Hardware tests are opt-in. For a direct PCM with its output cabled to its input,
+run the analog loopback test with:
+
+```sh
+GO_ALSA_TEST_LOOPBACK_PCM=hw:3,0 go test ./pcm -run TestHardwareLoopback -v
+```
+
+The current test supports asymmetric stereo-playback/mono-capture USB adapters,
+transfers one second at 48 kHz, checks spectral dominance of the looped-back
+1 kHz tone, and requires zero reported XRUNs.

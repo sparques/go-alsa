@@ -86,6 +86,12 @@ func TestPCMTransferLayoutAndIoctls(t *testing.T) {
 	if got := io(pcmIoctlType, 0x42); got != PCMIoctlStart {
 		t.Fatalf("START ioctl = %#x; want %#x", got, PCMIoctlStart)
 	}
+	if got := io(pcmIoctlType, 0x43); got != PCMIoctlDrop {
+		t.Fatalf("DROP ioctl = %#x; want %#x", got, PCMIoctlDrop)
+	}
+	if got := io(pcmIoctlType, 0x44); got != PCMIoctlDrain {
+		t.Fatalf("DRAIN ioctl = %#x; want %#x", got, PCMIoctlDrain)
+	}
 	if got := iow(pcmIoctlType, 0x50, unsafe.Sizeof(PCMXferI{})); got != PCMIoctlWriteInterleaved {
 		t.Fatalf("WRITEI ioctl = %#x; want %#x", got, PCMIoctlWriteInterleaved)
 	}
