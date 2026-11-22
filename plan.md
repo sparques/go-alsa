@@ -424,6 +424,8 @@ without corruption, deadlocks, unbounded latency, or leaked IPC resources.
   negotiation errors, XRUNs, latency, and container device mapping.
 - Architecture-support and kernel-version policies.
 - Migration guide from common libasound C calls and existing Go cgo wrappers.
+- Implement go-amixer, go-aplay, and go-arecord command line tools that perform
+  the same functions as their ALSA equivalents, but using go-idioms.
 
 ## 19. Release gates
 
