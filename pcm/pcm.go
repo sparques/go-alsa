@@ -17,6 +17,8 @@ var (
 	// ErrXRUN reports a playback underrun or capture overrun. Call Prepare to
 	// recover before transferring more frames.
 	ErrXRUN = errors.New("alsa pcm: xrun")
+	// ErrDisconnected reports hardware removal or a disconnected PCM stream.
+	ErrDisconnected = errors.New("alsa pcm: disconnected")
 )
 
 // Info is immutable metadata returned by the kernel for an opened PCM stream.
@@ -107,6 +109,10 @@ func (h *Handle) Start() error { return h.start() }
 // before the next transfer.
 func (h *Handle) Drop() error { return h.drop() }
 
+// Drain waits until queued playback frames have reached the device. Kernel
+// state is consulted to distinguish completion, XRUN, and disconnection.
+func (h *Handle) Drain(ctx context.Context) error { return h.drain(ctx) }
+
 // FreeHardware releases negotiated hardware resources and returns the stream
 // to OPEN state. It is safe when parameters have already been freed.
 func (h *Handle) FreeHardware() error { return h.freeHardware() }
@@ -160,6 +166,59 @@ type HardwareSetup struct {
 	MSBits     int
 	FIFOFrames uint64
 }
+
+// State is the kernel PCM lifecycle state.
+type State int32
+
+const (
+	StateOpen State = iota
+	StateSetup
+	StatePrepared
+	StateRunning
+	StateXRUN
+	StateDraining
+	StatePaused
+	StateSuspended
+	StateDisconnected
+)
+
+func (s State) String() string {
+	names := [...]string{"OPEN", "SETUP", "PREPARED", "RUNNING", "XRUN", "DRAINING", "PAUSED", "SUSPENDED", "DISCONNECTED"}
+	if s < 0 || int(s) >= len(names) {
+		return "UNKNOWN"
+	}
+	return names[s]
+}
+
+// Timestamp is an unmodified kernel timespec. Its clock domain depends on the
+// configured timestamp mode and type.
+type Timestamp struct {
+	Seconds     int64
+	Nanoseconds int64
+}
+
+// Status is a snapshot returned by SNDRV_PCM_IOCTL_STATUS.
+type Status struct {
+	State                  State
+	TriggerTimestamp       Timestamp
+	Timestamp              Timestamp
+	ApplicationPointer     uint64
+	HardwarePointer        uint64
+	DelayFrames            int64
+	AvailableFrames        uint64
+	MaximumAvailableFrames uint64
+	OverrangeCount         uint64
+	SuspendedState         State
+	AudioTimestamp         Timestamp
+	DriverTimestamp        Timestamp
+	AudioTimestampAccuracy uint32
+}
+
+// Status returns a kernel state snapshot.
+func (h *Handle) Status() (Status, error) { return h.status() }
+
+// Delay returns frames queued for playback or frames captured but not yet read.
+func (h *Handle) Delay() (int64, error) { return h.delay() }
 
 type streamDirection uint8
 

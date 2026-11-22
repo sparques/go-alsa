@@ -59,5 +59,8 @@ behavioral implementation rather than as an untested bulk transcription.
 Software parameters, prepare/start, and interleaved transfer ioctls are now
 represented and checked as well. The first transfer API is deliberately strict:
 it reports XRUNs for explicit recovery instead of silently preparing the stream.
-Status, synchronization pointers, non-interleaved access, and mmap channel areas
-remain pending.
+Synchronization pointers, non-interleaved access, and mmap channel areas remain
+pending. Kernel status and delay ioctls are represented and used by the public
+PCM API. State-aware playback drain uses those snapshots to distinguish
+DRAINING, completion in SETUP, XRUN, and disconnection; this avoids treating
+ALSA's device-specific `POLLERR` drain notification as a generic I/O failure.

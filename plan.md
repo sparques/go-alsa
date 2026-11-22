@@ -49,8 +49,8 @@ item does not imply that its phase exit criteria have been met.
   - [ ] Implement hardware/software parameter negotiation and streaming.
     (Exact S16_LE, RW-interleaved hardware constraints, software defaults, and
     prepare are implemented; initial nonblocking interleaved transfers and
-    strict/automatic XRUN recovery are implemented; broader negotiation and
-    lifecycle operations, including state-aware drain, remain.)
+    strict/automatic XRUN recovery, status/delay queries, and state-aware drain
+    are implemented; broader negotiation and lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**

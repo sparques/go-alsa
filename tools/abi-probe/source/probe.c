@@ -33,6 +33,11 @@ int main(void) {
 	VALUE("pcm_xferi_size", sizeof(struct snd_xferi));
 	VALUE("pcm_writei_ioctl", SNDRV_PCM_IOCTL_WRITEI_FRAMES);
 	VALUE("pcm_readi_ioctl", SNDRV_PCM_IOCTL_READI_FRAMES);
+	VALUE("pcm_status_size", sizeof(struct snd_pcm_status));
+	VALUE("pcm_status_appl_offset", offsetof(struct snd_pcm_status, appl_ptr));
+	VALUE("pcm_status_audio_offset", offsetof(struct snd_pcm_status, audio_tstamp));
+	VALUE("pcm_status_ioctl", SNDRV_PCM_IOCTL_STATUS);
+	VALUE("pcm_delay_ioctl", SNDRV_PCM_IOCTL_DELAY);
 	VALUE("pcm_info_size", sizeof(struct snd_pcm_info));
 	VALUE("pcm_subdevices_offset", offsetof(struct snd_pcm_info, subdevices_count));
 	VALUE("control_pcm_next_ioctl", SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE);

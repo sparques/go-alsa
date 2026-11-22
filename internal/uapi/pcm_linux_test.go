@@ -99,3 +99,22 @@ func TestPCMTransferLayoutAndIoctls(t *testing.T) {
 		t.Fatalf("READI ioctl = %#x; want %#x", got, PCMIoctlReadInterleaved)
 	}
 }
+
+func TestPCMStatusLayoutAndIoctls(t *testing.T) {
+	t.Parallel()
+	if got := unsafe.Sizeof(PCMStatus{}); got != 152 {
+		t.Fatalf("sizeof(PCMStatus) = %d; want 152", got)
+	}
+	if got := unsafe.Offsetof(PCMStatus{}.ApplicationPointer); got != 40 {
+		t.Fatalf("offsetof(ApplicationPointer) = %d; want 40", got)
+	}
+	if got := unsafe.Offsetof(PCMStatus{}.AudioTimestamp); got != 96 {
+		t.Fatalf("offsetof(AudioTimestamp) = %d; want 96", got)
+	}
+	if got := ior(pcmIoctlType, 0x20, unsafe.Sizeof(PCMStatus{})); got != PCMIoctlStatus {
+		t.Fatalf("STATUS ioctl = %#x; want %#x", got, PCMIoctlStatus)
+	}
+	if got := ior(pcmIoctlType, 0x21, unsafe.Sizeof(int64(0))); got != PCMIoctlDelay {
+		t.Fatalf("DELAY ioctl = %#x; want %#x", got, PCMIoctlDelay)
+	}
+}

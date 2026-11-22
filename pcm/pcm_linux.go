@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 
 	alsa "github.com/sparques/go-alsa"
@@ -199,6 +200,121 @@ func (h *Handle) drop() error {
 	}
 	h.prepared = false
 	return nil
+}
+
+func (h *Handle) status() (Status, error) {
+	var raw uapi.PCMStatus
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlStatus, unsafe.Pointer(&raw)); err != nil {
+		return Status{}, fmt.Errorf("alsa pcm: status: %w", err)
+	}
+	return statusFromUAPI(raw), nil
+}
+
+func (h *Handle) delay() (int64, error) {
+	var frames int64
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlDelay, unsafe.Pointer(&frames)); err != nil {
+		return 0, fmt.Errorf("alsa pcm: delay: %w", err)
+	}
+	return frames, nil
+}
+
+func statusFromUAPI(raw uapi.PCMStatus) Status {
+	return Status{
+		State:                  State(raw.State),
+		TriggerTimestamp:       Timestamp{Seconds: raw.TriggerTimestamp.Seconds, Nanoseconds: raw.TriggerTimestamp.Nanoseconds},
+		Timestamp:              Timestamp{Seconds: raw.Timestamp.Seconds, Nanoseconds: raw.Timestamp.Nanoseconds},
+		ApplicationPointer:     raw.ApplicationPointer,
+		HardwarePointer:        raw.HardwarePointer,
+		DelayFrames:            raw.Delay,
+		AvailableFrames:        raw.Available,
+		MaximumAvailableFrames: raw.MaximumAvailable,
+		OverrangeCount:         raw.Overrange,
+		SuspendedState:         State(raw.SuspendedState),
+		AudioTimestamp:         Timestamp{Seconds: raw.AudioTimestamp.Seconds, Nanoseconds: raw.AudioTimestamp.Nanoseconds},
+		DriverTimestamp:        Timestamp{Seconds: raw.DriverTimestamp.Seconds, Nanoseconds: raw.DriverTimestamp.Nanoseconds},
+		AudioTimestampAccuracy: raw.AudioTimestampAccuracy,
+	}
+}
+
+func (h *Handle) drain(ctx context.Context) error {
+	h.mu.Lock()
+	if h.stream != streamPlayback {
+		h.mu.Unlock()
+		return ErrDirection
+	}
+	if !h.prepared {
+		h.mu.Unlock()
+		return fmt.Errorf("%w: prepare before drain", ErrState)
+	}
+	h.mu.Unlock()
+
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := h.core.fd.Ioctl(uapi.PCMIoctlDrain, nil)
+		if err == nil {
+			h.markUnprepared()
+			return nil
+		}
+		if errors.Is(err, syscall.EPIPE) {
+			h.mu.Lock()
+			h.underruns++
+			h.prepared = false
+			h.mu.Unlock()
+			return fmt.Errorf("%w: %w", ErrXRUN, err)
+		}
+		if !errors.Is(err, syscall.EAGAIN) {
+			return fmt.Errorf("alsa pcm: drain: %w", err)
+		}
+
+		status, err := h.status()
+		if err != nil {
+			return err
+		}
+		switch status.State {
+		case StateSetup:
+			h.markUnprepared()
+			return nil
+		case StateXRUN:
+			h.mu.Lock()
+			h.underruns++
+			h.prepared = false
+			h.mu.Unlock()
+			return ErrXRUN
+		case StateDisconnected:
+			h.markUnprepared()
+			return ErrDisconnected
+		case StateDraining, StateRunning:
+		default:
+			return fmt.Errorf("%w: cannot drain state %s", ErrState, status.State)
+		}
+
+		revents, err := h.core.fd.Wait(ctx, unix.POLLOUT)
+		if err != nil {
+			return err
+		}
+		if revents&(unix.POLLHUP|unix.POLLNVAL) != 0 {
+			return ErrDisconnected
+		}
+		if revents&unix.POLLERR != 0 {
+			timer := time.NewTimer(time.Millisecond)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
+	}
+}
+
+func (h *Handle) markUnprepared() {
+	h.mu.Lock()
+	h.prepared = false
+	h.mu.Unlock()
 }
 
 func (h *Handle) freeHardware() error {

@@ -66,11 +66,23 @@ func TestHardwareLoopback(t *testing.T) {
 	if err := writeFrames(ctx, playback, output, 2, periodFrames); err != nil {
 		t.Fatalf("write loopback signal: %v", err)
 	}
+	status, err := playback.Status()
+	if err != nil {
+		t.Fatalf("playback status: %v", err)
+	}
+	delay, err := playback.Delay()
+	if err != nil {
+		t.Fatalf("playback delay: %v", err)
+	}
+	t.Logf("playback state %s, queued delay %d frames", status.State, delay)
+	if delay < 0 {
+		t.Fatalf("playback delay = %d; want non-negative queued frames", delay)
+	}
 	if err := <-captureDone; err != nil {
 		t.Fatalf("read loopback signal: %v", err)
 	}
-	if err := playback.Drop(); err != nil {
-		t.Fatalf("drop playback: %v", err)
+	if err := playback.Drain(ctx); err != nil {
+		t.Fatalf("drain playback: %v", err)
 	}
 
 	oneKHz := toneMagnitude(input, rate, toneHz)

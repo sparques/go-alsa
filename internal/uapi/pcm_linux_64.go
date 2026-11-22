@@ -109,6 +109,32 @@ type PCMXferI struct {
 	Frames uint64
 }
 
+type Timespec struct {
+	Seconds     int64
+	Nanoseconds int64
+}
+
+// PCMStatus matches struct snd_pcm_status on supported 64-bit Linux
+// architectures.
+type PCMStatus struct {
+	State                  int32
+	Pad1                   [4]byte
+	TriggerTimestamp       Timespec
+	Timestamp              Timespec
+	ApplicationPointer     uint64
+	HardwarePointer        uint64
+	Delay                  int64
+	Available              uint64
+	MaximumAvailable       uint64
+	Overrange              uint64
+	SuspendedState         int32
+	AudioTimestampData     uint32
+	AudioTimestamp         Timespec
+	DriverTimestamp        Timespec
+	AudioTimestampAccuracy uint32
+	Reserved               [20]byte
+}
+
 const (
 	PCMIoctlProtocolVersion  = uintptr(0x80044100)
 	PCMIoctlInfo             = uintptr(0x81204101)
@@ -116,6 +142,8 @@ const (
 	PCMIoctlHWParams         = uintptr(0xc2604111)
 	PCMIoctlHWFree           = uintptr(0x00004112)
 	PCMIoctlSWParams         = uintptr(0xc0884113)
+	PCMIoctlStatus           = uintptr(0x80984120)
+	PCMIoctlDelay            = uintptr(0x80084121)
 	PCMIoctlPrepare          = uintptr(0x00004140)
 	PCMIoctlStart            = uintptr(0x00004142)
 	PCMIoctlDrop             = uintptr(0x00004143)
@@ -136,4 +164,6 @@ var (
 	_ [unsafe.Sizeof(PCMSWParams{}) - 136]byte
 	_ [24 - unsafe.Sizeof(PCMXferI{})]byte
 	_ [unsafe.Sizeof(PCMXferI{}) - 24]byte
+	_ [152 - unsafe.Sizeof(PCMStatus{})]byte
+	_ [unsafe.Sizeof(PCMStatus{}) - 152]byte
 )
