@@ -118,3 +118,24 @@ func TestPCMStatusLayoutAndIoctls(t *testing.T) {
 		t.Fatalf("DELAY ioctl = %#x; want %#x", got, PCMIoctlDelay)
 	}
 }
+
+func TestPCMLifecycleIoctls(t *testing.T) {
+	t.Parallel()
+	checks := []struct {
+		name string
+		got  uintptr
+		want uintptr
+	}{
+		{"HWSYNC", io(pcmIoctlType, 0x22), PCMIoctlHWSync},
+		{"RESET", io(pcmIoctlType, 0x41), PCMIoctlReset},
+		{"PAUSE", iow(pcmIoctlType, 0x45, unsafe.Sizeof(int32(0))), PCMIoctlPause},
+		{"REWIND", iow(pcmIoctlType, 0x46, unsafe.Sizeof(uint64(0))), PCMIoctlRewind},
+		{"RESUME", io(pcmIoctlType, 0x47), PCMIoctlResume},
+		{"FORWARD", iow(pcmIoctlType, 0x49, unsafe.Sizeof(uint64(0))), PCMIoctlForward},
+	}
+	for _, check := range checks {
+		if check.got != check.want {
+			t.Errorf("%s ioctl = %#x; want %#x", check.name, check.got, check.want)
+		}
+	}
+}

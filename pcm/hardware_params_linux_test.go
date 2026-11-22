@@ -50,3 +50,14 @@ func TestValidateHardwareConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestHardwareCapabilities(t *testing.T) {
+	t.Parallel()
+	setup := HardwareSetup{InfoFlags: hardwareInfoPause | hardwareInfoResume}
+	if !setup.CanPause() || !setup.CanResume() {
+		t.Fatalf("capabilities not reported: %#v", setup)
+	}
+	if (HardwareSetup{}).CanPause() || (HardwareSetup{}).CanResume() {
+		t.Fatal("zero setup reported capabilities")
+	}
+}

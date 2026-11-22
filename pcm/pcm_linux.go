@@ -513,7 +513,66 @@ func hardwareSetup(params uapi.PCMHWParams) HardwareSetup {
 		Periods:    intervalValue(params, uapi.PCMHWParamPeriods),
 		MSBits:     int(params.MSBits),
 		FIFOFrames: uint64(params.FIFOSize),
+		InfoFlags:  params.Info,
 	}
+}
+
+func (h *Handle) reset() error {
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlReset, nil); err != nil {
+		return fmt.Errorf("alsa pcm: reset: %w", err)
+	}
+	return nil
+}
+
+func (h *Handle) pause(paused bool) error {
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	value := int32(0)
+	if paused {
+		value = 1
+	}
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlPause, unsafe.Pointer(&value)); err != nil {
+		return fmt.Errorf("alsa pcm: pause: %w", err)
+	}
+	return nil
+}
+
+func (h *Handle) resume() error {
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlResume, nil); err != nil {
+		return fmt.Errorf("alsa pcm: resume: %w", err)
+	}
+	return nil
+}
+
+func (h *Handle) rewind(frames uint64) (uint64, error) {
+	return h.moveApplicationPointer(uapi.PCMIoctlRewind, frames, "rewind")
+}
+
+func (h *Handle) forward(frames uint64) (uint64, error) {
+	return h.moveApplicationPointer(uapi.PCMIoctlForward, frames, "forward")
+}
+
+func (h *Handle) moveApplicationPointer(request uintptr, frames uint64, operation string) (uint64, error) {
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	actual := frames
+	if err := h.core.fd.Ioctl(request, unsafe.Pointer(&actual)); err != nil {
+		return 0, fmt.Errorf("alsa pcm: %s: %w", operation, err)
+	}
+	return actual, nil
+}
+
+func (h *Handle) syncHardware() error {
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWSync, nil); err != nil {
+		return fmt.Errorf("alsa pcm: synchronize hardware pointer: %w", err)
+	}
+	return nil
 }
 
 func singleMaskValue(p uapi.PCMHWParams, parameter int) int {

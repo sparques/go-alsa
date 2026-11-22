@@ -38,6 +38,12 @@ int main(void) {
 	VALUE("pcm_status_audio_offset", offsetof(struct snd_pcm_status, audio_tstamp));
 	VALUE("pcm_status_ioctl", SNDRV_PCM_IOCTL_STATUS);
 	VALUE("pcm_delay_ioctl", SNDRV_PCM_IOCTL_DELAY);
+	VALUE("pcm_hwsync_ioctl", SNDRV_PCM_IOCTL_HWSYNC);
+	VALUE("pcm_reset_ioctl", SNDRV_PCM_IOCTL_RESET);
+	VALUE("pcm_pause_ioctl", SNDRV_PCM_IOCTL_PAUSE);
+	VALUE("pcm_rewind_ioctl", SNDRV_PCM_IOCTL_REWIND);
+	VALUE("pcm_resume_ioctl", SNDRV_PCM_IOCTL_RESUME);
+	VALUE("pcm_forward_ioctl", SNDRV_PCM_IOCTL_FORWARD);
 	VALUE("pcm_info_size", sizeof(struct snd_pcm_info));
 	VALUE("pcm_subdevices_offset", offsetof(struct snd_pcm_info, subdevices_count));
 	VALUE("control_pcm_next_ioctl", SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE);

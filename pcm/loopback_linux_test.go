@@ -103,6 +103,71 @@ func TestHardwareLoopback(t *testing.T) {
 	}
 }
 
+func TestHardwareLifecycle(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_LOOPBACK_PCM")
+	if name == "" {
+		t.Skip("set GO_ALSA_TEST_LOOPBACK_PCM to a direct hw: PCM")
+	}
+	const (
+		channels     = 2
+		periodFrames = 480
+		bufferFrames = 4800
+	)
+	handle, err := OpenHardware(name, alsa.Playback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: channels, Rate: 48000, PeriodFrames: periodFrames, BufferFrames: bufferFrames}
+	setup, err := handle.ConfigureHardware(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handle.ConfigureSoftwareDefaults(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.SyncHardware(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	if err := writeFrames(ctx, handle, make([]int16, bufferFrames*channels), channels, periodFrames); err != nil {
+		t.Fatal(err)
+	}
+	if setup.CanPause() {
+		if err := handle.Pause(true); err != nil {
+			t.Fatalf("pause: %v", err)
+		}
+		if err := handle.Pause(false); err != nil {
+			t.Fatalf("release pause: %v", err)
+		}
+	}
+	rewound, err := handle.Rewind(periodFrames)
+	if err != nil {
+		t.Fatalf("rewind: %v", err)
+	}
+	if rewound > periodFrames {
+		t.Fatalf("rewound %d frames; requested %d", rewound, periodFrames)
+	}
+	forwarded, err := handle.Forward(rewound)
+	if err != nil {
+		t.Fatalf("forward: %v", err)
+	}
+	if forwarded > rewound {
+		t.Fatalf("forwarded %d frames; requested %d", forwarded, rewound)
+	}
+	if err := handle.Drop(); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("capabilities pause=%t resume=%t, rewound=%d forwarded=%d", setup.CanPause(), setup.CanResume(), rewound, forwarded)
+}
+
 func configurePrepared(handle *Handle, config HardwareConfig) error {
 	if _, err := handle.ConfigureHardware(config); err != nil {
 		return err

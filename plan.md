@@ -50,7 +50,8 @@ item does not imply that its phase exit criteria have been met.
     (Exact S16_LE, RW-interleaved hardware constraints, software defaults, and
     prepare are implemented; initial nonblocking interleaved transfers and
     strict/automatic XRUN recovery, status/delay queries, and state-aware drain
-    are implemented; broader negotiation and lifecycle operations remain.)
+    are implemented; reset, pause/resume, rewind/forward, and hardware sync are
+    exposed; broader negotiation and remaining lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**

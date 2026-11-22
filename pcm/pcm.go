@@ -165,7 +165,19 @@ type HardwareSetup struct {
 	Periods    int
 	MSBits     int
 	FIFOFrames uint64
+	InfoFlags  uint32
 }
+
+// CanPause reports native hardware pause support.
+func (s HardwareSetup) CanPause() bool { return s.InfoFlags&hardwareInfoPause != 0 }
+
+// CanResume reports native hardware suspend/resume support.
+func (s HardwareSetup) CanResume() bool { return s.InfoFlags&hardwareInfoResume != 0 }
+
+const (
+	hardwareInfoResume = uint32(0x00000400)
+	hardwareInfoPause  = uint32(0x00000800)
+)
 
 // State is the kernel PCM lifecycle state.
 type State int32
@@ -219,6 +231,29 @@ func (h *Handle) Status() (Status, error) { return h.status() }
 
 // Delay returns frames queued for playback or frames captured but not yet read.
 func (h *Handle) Delay() (int64, error) { return h.delay() }
+
+// Reset resets application and hardware ring pointers without discarding the
+// negotiated parameters.
+func (h *Handle) Reset() error { return h.reset() }
+
+// Pause pauses or releases a running stream when HardwareSetup.CanPause is
+// true.
+func (h *Handle) Pause(paused bool) error { return h.pause(paused) }
+
+// Resume resumes a stream suspended by the system when
+// HardwareSetup.CanResume is true. This is distinct from releasing Pause.
+func (h *Handle) Resume() error { return h.resume() }
+
+// Rewind moves the application pointer backward by up to frames and returns
+// the actual movement reported by the kernel.
+func (h *Handle) Rewind(frames uint64) (uint64, error) { return h.rewind(frames) }
+
+// Forward moves the application pointer forward by up to frames and returns
+// the actual movement reported by the kernel.
+func (h *Handle) Forward(frames uint64) (uint64, error) { return h.forward(frames) }
+
+// SyncHardware synchronizes the userspace-visible hardware pointer.
+func (h *Handle) SyncHardware() error { return h.syncHardware() }
 
 type streamDirection uint8
 
