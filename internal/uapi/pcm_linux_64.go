@@ -102,14 +102,24 @@ type PCMSWParams struct {
 	Reserved         [56]byte
 }
 
+// PCMXferI matches struct snd_xferi for interleaved frame transfers.
+type PCMXferI struct {
+	Result int64
+	Buffer uintptr
+	Frames uint64
+}
+
 const (
-	PCMIoctlProtocolVersion = uintptr(0x80044100)
-	PCMIoctlInfo            = uintptr(0x81204101)
-	PCMIoctlHWRefine        = uintptr(0xc2604110)
-	PCMIoctlHWParams        = uintptr(0xc2604111)
-	PCMIoctlHWFree          = uintptr(0x00004112)
-	PCMIoctlSWParams        = uintptr(0xc0884113)
-	PCMIoctlPrepare         = uintptr(0x00004140)
+	PCMIoctlProtocolVersion  = uintptr(0x80044100)
+	PCMIoctlInfo             = uintptr(0x81204101)
+	PCMIoctlHWRefine         = uintptr(0xc2604110)
+	PCMIoctlHWParams         = uintptr(0xc2604111)
+	PCMIoctlHWFree           = uintptr(0x00004112)
+	PCMIoctlSWParams         = uintptr(0xc0884113)
+	PCMIoctlPrepare          = uintptr(0x00004140)
+	PCMIoctlStart            = uintptr(0x00004142)
+	PCMIoctlWriteInterleaved = uintptr(0x40184150)
+	PCMIoctlReadInterleaved  = uintptr(0x80184151)
 
 	ControlIoctlPCMNextDevice = uintptr(0x80045530)
 	ControlIoctlPCMInfo       = uintptr(0xc1205531)
@@ -122,4 +132,6 @@ var (
 	_ [unsafe.Sizeof(PCMHWParams{}) - 608]byte
 	_ [136 - unsafe.Sizeof(PCMSWParams{})]byte
 	_ [unsafe.Sizeof(PCMSWParams{}) - 136]byte
+	_ [24 - unsafe.Sizeof(PCMXferI{})]byte
+	_ [unsafe.Sizeof(PCMXferI{}) - 24]byte
 )

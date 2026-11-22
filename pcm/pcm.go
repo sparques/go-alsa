@@ -1,6 +1,7 @@
 package pcm
 
 import (
+	"context"
 	"errors"
 	"sync"
 )
@@ -13,6 +14,9 @@ var (
 	ErrDirection = errors.New("alsa pcm: stream direction mismatch")
 	// ErrState reports an operation attempted in the wrong PCM lifecycle state.
 	ErrState = errors.New("alsa pcm: invalid state")
+	// ErrXRUN reports a playback underrun or capture overrun. Call Prepare to
+	// recover before transferring more frames.
+	ErrXRUN = errors.New("alsa pcm: xrun")
 )
 
 // Info is immutable metadata returned by the kernel for an opened PCM stream.
@@ -30,6 +34,7 @@ type Info struct {
 // Handle owns one direct kernel ALSA PCM stream.
 type Handle struct {
 	mu       sync.Mutex
+	ioMu     sync.Mutex
 	core     handleCore
 	info     Info
 	stream   streamDirection
@@ -53,6 +58,23 @@ func (h *Handle) Close() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.core.close()
+}
+
+// Start explicitly starts a prepared stream. Capture applications commonly
+// call Start before ReadInterleaved; playback normally starts automatically at
+// its configured threshold.
+func (h *Handle) Start() error { return h.start() }
+
+// ReadInterleaved captures whole S16_LE frames into samples. The sample count
+// must be divisible by the configured channel count.
+func (h *Handle) ReadInterleaved(ctx context.Context, samples []int16) (int, error) {
+	return h.transferInterleaved(ctx, samples, true)
+}
+
+// WriteInterleaved plays whole S16_LE frames from samples. The sample count
+// must be divisible by the configured channel count.
+func (h *Handle) WriteInterleaved(ctx context.Context, samples []int16) (int, error) {
+	return h.transferInterleaved(ctx, samples, false)
 }
 
 // Access identifies how application frames are transferred.

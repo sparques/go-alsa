@@ -3,14 +3,17 @@
 package pcm
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"syscall"
 	"unsafe"
 
 	alsa "github.com/sparques/go-alsa"
 	"github.com/sparques/go-alsa/internal/sysio"
 	"github.com/sparques/go-alsa/internal/uapi"
+	"golang.org/x/sys/unix"
 )
 
 type handleCore struct {
@@ -171,6 +174,80 @@ func (h *Handle) Prepare() error {
 	}
 	h.prepared = true
 	return nil
+}
+
+func (h *Handle) start() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if !h.prepared {
+		return fmt.Errorf("%w: prepare before start", ErrState)
+	}
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlStart, nil); err != nil {
+		return fmt.Errorf("alsa pcm: start: %w", err)
+	}
+	return nil
+}
+
+func (h *Handle) transferInterleaved(ctx context.Context, samples []int16, read bool) (int, error) {
+	if len(samples) == 0 {
+		return 0, nil
+	}
+	h.mu.Lock()
+	if !h.prepared || h.hardware == nil {
+		h.mu.Unlock()
+		return 0, fmt.Errorf("%w: prepare before transfer", ErrState)
+	}
+	channels := h.hardware.Channels
+	stream := h.stream
+	h.mu.Unlock()
+	if len(samples)%channels != 0 {
+		return 0, errors.New("alsa pcm: sample buffer does not contain whole frames")
+	}
+	if read && stream != streamCapture || !read && stream != streamPlayback {
+		return 0, ErrDirection
+	}
+
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	request := uapi.PCMIoctlWriteInterleaved
+	events := int16(unix.POLLOUT)
+	if read {
+		request = uapi.PCMIoctlReadInterleaved
+		events = unix.POLLIN
+	}
+	transfer := uapi.PCMXferI{
+		Buffer: uintptr(unsafe.Pointer(unsafe.SliceData(samples))),
+		Frames: uint64(len(samples) / channels),
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		err := h.core.fd.Ioctl(request, unsafe.Pointer(&transfer))
+		runtime.KeepAlive(samples)
+		if err == nil {
+			if transfer.Result < 0 || uint64(transfer.Result) > transfer.Frames {
+				return 0, fmt.Errorf("alsa pcm: kernel returned invalid frame count %d", transfer.Result)
+			}
+			return int(transfer.Result), nil
+		}
+		if errors.Is(err, syscall.EPIPE) {
+			h.mu.Lock()
+			h.prepared = false
+			h.mu.Unlock()
+			return 0, fmt.Errorf("%w: %w", ErrXRUN, err)
+		}
+		if !errors.Is(err, syscall.EAGAIN) {
+			return 0, fmt.Errorf("alsa pcm: transfer: %w", err)
+		}
+		revents, err := h.core.fd.Wait(ctx, events)
+		if err != nil {
+			return 0, err
+		}
+		if revents&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
+			return 0, fmt.Errorf("alsa pcm: poll reported stream error %#x", revents)
+		}
+	}
 }
 
 func validateSoftwareConfig(config SoftwareConfig, hardware HardwareSetup) error {

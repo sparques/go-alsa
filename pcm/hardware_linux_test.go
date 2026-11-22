@@ -75,3 +75,50 @@ func TestConfigureHardware(t *testing.T) {
 		t.Fatalf("Prepare: %v", err)
 	}
 }
+
+func TestTransferHardware(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_PCM")
+	if name == "" || os.Getenv("GO_ALSA_TEST_TRANSFER") != "1" {
+		t.Skip("set GO_ALSA_TEST_PCM and GO_ALSA_TEST_TRANSFER=1")
+	}
+	stream := alsa.Playback
+	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
+		stream = alsa.Capture
+	}
+	handle, err := OpenHardware(name, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800}
+	if _, err := handle.ConfigureHardware(config); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handle.ConfigureSoftwareDefaults(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	samples := make([]int16, config.PeriodFrames*config.Channels)
+	if stream == alsa.Capture {
+		if err := handle.Start(); err != nil {
+			t.Fatal(err)
+		}
+		frames, err := handle.ReadInterleaved(t.Context(), samples)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if frames <= 0 || frames > config.PeriodFrames {
+			t.Fatalf("captured frames = %d", frames)
+		}
+		return
+	}
+	frames, err := handle.WriteInterleaved(t.Context(), samples)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frames <= 0 || frames > config.PeriodFrames {
+		t.Fatalf("played frames = %d", frames)
+	}
+}

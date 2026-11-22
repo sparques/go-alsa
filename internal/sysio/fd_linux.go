@@ -4,10 +4,13 @@
 package sysio
 
 import (
+	"context"
 	"io"
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 type systemCalls interface {
@@ -40,10 +43,12 @@ func (linuxSystemCalls) Ioctl(fd int, request uintptr, argument unsafe.Pointer) 
 // in flight. ALSA descriptors are opened nonblocking, so operations holding a
 // read lock must not sleep indefinitely in the kernel.
 type FD struct {
-	mu     sync.RWMutex
-	number int
-	closed bool
-	sys    systemCalls
+	mu          sync.RWMutex
+	number      int
+	closed      bool
+	sys         systemCalls
+	closing     chan struct{}
+	closeSignal sync.Once
 }
 
 // Open opens path with close-on-exec and returns an owned descriptor.
@@ -56,7 +61,7 @@ func openWith(path string, flags int, sys systemCalls) (*FD, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FD{number: number, sys: sys}, nil
+	return &FD{number: number, sys: sys, closing: make(chan struct{})}, nil
 }
 
 // Ioctl executes one ioctl while preventing concurrent descriptor reuse.
@@ -73,6 +78,7 @@ func (f *FD) Ioctl(request uintptr, argument unsafe.Pointer) error {
 // idempotent. Linux close errors are returned but close is never retried,
 // because retrying can close an unrelated reused descriptor.
 func (f *FD) Close() error {
+	f.closeSignal.Do(func() { close(f.closing) })
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
@@ -82,4 +88,60 @@ func (f *FD) Close() error {
 	err := f.sys.Close(f.number)
 	f.number = -1
 	return err
+}
+
+// Wait blocks until the descriptor has one of events, the context is canceled,
+// or Close begins. An eventfd wakes poll without periodic timeout latency.
+func (f *FD) Wait(ctx context.Context, events int16) (int16, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	if f.closed {
+		return 0, io.ErrClosedPipe
+	}
+	wake, err := unix.Eventfd(0, unix.EFD_CLOEXEC|unix.EFD_NONBLOCK)
+	if err != nil {
+		return 0, err
+	}
+	defer unix.Close(wake)
+
+	done := make(chan struct{})
+	wakerDone := make(chan struct{})
+	go func() {
+		defer close(wakerDone)
+		select {
+		case <-ctx.Done():
+		case <-f.closing:
+		case <-done:
+			return
+		}
+		var value [8]byte
+		value[0] = 1
+		_, _ = unix.Write(wake, value[:])
+	}()
+
+	pollFDs := []unix.PollFd{
+		{Fd: int32(f.number), Events: events},
+		{Fd: int32(wake), Events: unix.POLLIN},
+	}
+	for {
+		_, err = unix.Ppoll(pollFDs, nil, nil)
+		if err == syscall.EINTR {
+			continue
+		}
+		break
+	}
+	close(done)
+	<-wakerDone
+	if err != nil {
+		return 0, err
+	}
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
+	select {
+	case <-f.closing:
+		return 0, io.ErrClosedPipe
+	default:
+	}
+	return pollFDs[0].Revents, nil
 }

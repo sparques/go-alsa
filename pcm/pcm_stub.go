@@ -2,7 +2,11 @@
 
 package pcm
 
-import alsa "github.com/sparques/go-alsa"
+import (
+	"context"
+
+	alsa "github.com/sparques/go-alsa"
+)
 
 type handleCore struct{}
 
@@ -25,3 +29,7 @@ func (*Handle) ConfigureSoftwareDefaults() (SoftwareSetup, error) {
 }
 
 func (*Handle) Prepare() error { return alsa.ErrUnsupportedPlatform }
+func (*Handle) start() error   { return alsa.ErrUnsupportedPlatform }
+func (*Handle) transferInterleaved(context.Context, []int16, bool) (int, error) {
+	return 0, alsa.ErrUnsupportedPlatform
+}

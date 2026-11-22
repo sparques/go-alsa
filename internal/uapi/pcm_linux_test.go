@@ -77,3 +77,19 @@ func TestPCMSWParamsLayoutAndIoctls(t *testing.T) {
 		t.Fatalf("PREPARE ioctl = %#x; want %#x", got, PCMIoctlPrepare)
 	}
 }
+
+func TestPCMTransferLayoutAndIoctls(t *testing.T) {
+	t.Parallel()
+	if got := unsafe.Sizeof(PCMXferI{}); got != 24 {
+		t.Fatalf("sizeof(PCMXferI) = %d; want 24", got)
+	}
+	if got := io(pcmIoctlType, 0x42); got != PCMIoctlStart {
+		t.Fatalf("START ioctl = %#x; want %#x", got, PCMIoctlStart)
+	}
+	if got := iow(pcmIoctlType, 0x50, unsafe.Sizeof(PCMXferI{})); got != PCMIoctlWriteInterleaved {
+		t.Fatalf("WRITEI ioctl = %#x; want %#x", got, PCMIoctlWriteInterleaved)
+	}
+	if got := ior(pcmIoctlType, 0x51, unsafe.Sizeof(PCMXferI{})); got != PCMIoctlReadInterleaved {
+		t.Fatalf("READI ioctl = %#x; want %#x", got, PCMIoctlReadInterleaved)
+	}
+}

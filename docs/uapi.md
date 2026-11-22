@@ -53,5 +53,11 @@ untested bulk transcription.
 
 The first streaming-related definition, `snd_pcm_hw_params`, is now checked for
 size and critical offsets and used for exact S16_LE interleaved hardware
-negotiation. Software parameters, transfers, status, synchronization pointers,
-and channel areas remain pending.
+negotiation. The remaining streaming ABI is being introduced alongside each
+behavioral implementation rather than as an untested bulk transcription.
+
+Software parameters, prepare/start, and interleaved transfer ioctls are now
+represented and checked as well. The first transfer API is deliberately strict:
+it reports XRUNs for explicit recovery instead of silently preparing the stream.
+Status, synchronization pointers, non-interleaved access, and mmap channel areas
+remain pending.

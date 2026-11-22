@@ -24,7 +24,8 @@ item does not imply that its phase exit criteria have been met.
   - [ ] Add the race-safe descriptor wrapper and deterministic syscall seams.
     (Implemented for nonblocking ioctl handles; poll/read/write integration is
     still pending.)
-  - [ ] Add context cancellation using `ppoll` and eventfd/pipe wakeups.
+  - [x] Add context cancellation using `ppoll` and eventfd wakeups, including
+    close-triggered wakeup and concurrency tests.
   - [ ] Meet the complete Phase 1 exit criteria on amd64 and arm64.
 - [ ] **Phase 2 — discovery and direct hardware resolution**
   - [x] Enumerate `/dev/snd/controlC*` and query card metadata with kernel
@@ -47,7 +48,8 @@ item does not imply that its phase exit criteria have been met.
     hardware test covers this path without configuring or transferring audio.
   - [ ] Implement hardware/software parameter negotiation and streaming.
     (Exact S16_LE, RW-interleaved hardware constraints, software defaults, and
-    prepare are implemented; transfers and broader negotiation remain.)
+    prepare are implemented; initial nonblocking interleaved transfers and
+    strict XRUN reporting are in progress.)
 - [ ] **Phase 4 — raw control API**
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**

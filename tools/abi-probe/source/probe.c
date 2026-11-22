@@ -27,6 +27,10 @@ int main(void) {
 	VALUE("pcm_sw_protocol_offset", offsetof(struct snd_pcm_sw_params, proto));
 	VALUE("pcm_sw_params_ioctl", SNDRV_PCM_IOCTL_SW_PARAMS);
 	VALUE("pcm_prepare_ioctl", SNDRV_PCM_IOCTL_PREPARE);
+	VALUE("pcm_start_ioctl", SNDRV_PCM_IOCTL_START);
+	VALUE("pcm_xferi_size", sizeof(struct snd_xferi));
+	VALUE("pcm_writei_ioctl", SNDRV_PCM_IOCTL_WRITEI_FRAMES);
+	VALUE("pcm_readi_ioctl", SNDRV_PCM_IOCTL_READI_FRAMES);
 	VALUE("pcm_info_size", sizeof(struct snd_pcm_info));
 	VALUE("pcm_subdevices_offset", offsetof(struct snd_pcm_info, subdevices_count));
 	VALUE("control_pcm_next_ioctl", SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE);
