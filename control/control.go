@@ -1,6 +1,10 @@
 package control
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"sync"
+)
 
 // Interface identifies the kernel subsystem that owns a control element.
 type Interface int32
@@ -124,7 +128,37 @@ type ElementValue struct {
 }
 
 // Handle owns an ALSA card control descriptor.
-type Handle struct{ core handleCore }
+type Handle struct {
+	core    handleCore
+	eventMu sync.Mutex
+}
 
 // Close releases the control descriptor. It is idempotent.
 func (h *Handle) Close() error { return h.core.close() }
+
+type EventMask uint32
+
+const (
+	EventValue  EventMask = 1 << 0
+	EventInfo   EventMask = 1 << 1
+	EventAdd    EventMask = 1 << 2
+	EventTLV    EventMask = 1 << 3
+	EventRemove EventMask = ^EventMask(0)
+)
+
+// Event reports a kernel control-element change.
+type Event struct {
+	Mask EventMask
+	ID   ElementID
+}
+
+// Subscribe enables or disables delivery of control events to this handle.
+func (h *Handle) Subscribe(enabled bool) error { return h.subscribe(enabled) }
+
+// NextEvent waits for one subscribed control event, context cancellation, or
+// handle closure. Concurrent calls are serialized to preserve event order.
+func (h *Handle) NextEvent(ctx context.Context) (Event, error) {
+	h.eventMu.Lock()
+	defer h.eventMu.Unlock()
+	return h.nextEvent(ctx)
+}

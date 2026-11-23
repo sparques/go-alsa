@@ -84,3 +84,16 @@ func TestControlLockAndTLVIoctls(t *testing.T) {
 		}
 	}
 }
+
+func TestControlEventLayoutAndIoctl(t *testing.T) {
+	t.Parallel()
+	if got := unsafe.Sizeof(ControlEvent{}); got != 72 {
+		t.Fatalf("sizeof(ControlEvent) = %d; want 72", got)
+	}
+	if got := unsafe.Offsetof(ControlEvent{}.ID); got != 8 {
+		t.Fatalf("offsetof(ControlEvent.ID) = %d; want 8", got)
+	}
+	if got := iowr(controlIoctlType, 0x16, unsafe.Sizeof(int32(0))); got != ControlIoctlSubscribeEvents {
+		t.Fatalf("SUBSCRIBE_EVENTS ioctl = %#x; want %#x", got, ControlIoctlSubscribeEvents)
+	}
+}

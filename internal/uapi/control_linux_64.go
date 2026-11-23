@@ -67,6 +67,13 @@ type ControlElementValue struct {
 	Reserved [128]byte
 }
 
+// ControlEvent is the element arm of struct snd_ctl_event.
+type ControlEvent struct {
+	Type int32
+	Mask uint32
+	ID   ControlElementID
+}
+
 const (
 	ControlIoctlProtocolVersion = uintptr(0x80045500)
 	ControlIoctlCardInfo        = uintptr(0x81785501)
@@ -76,6 +83,7 @@ const (
 	ControlIoctlElementWrite    = uintptr(0xc4c85513)
 	ControlIoctlElementLock     = uintptr(0x40405514)
 	ControlIoctlElementUnlock   = uintptr(0x40405515)
+	ControlIoctlSubscribeEvents = uintptr(0xc0045516)
 	ControlIoctlTLVRead         = uintptr(0xc008551a)
 	ControlIoctlTLVWrite        = uintptr(0xc008551b)
 	ControlIoctlTLVCommand      = uintptr(0xc008551c)
@@ -93,4 +101,6 @@ var (
 	_ [unsafe.Sizeof(ControlElementInfo{}) - 272]byte
 	_ [1224 - unsafe.Sizeof(ControlElementValue{})]byte
 	_ [unsafe.Sizeof(ControlElementValue{}) - 1224]byte
+	_ [72 - unsafe.Sizeof(ControlEvent{})]byte
+	_ [unsafe.Sizeof(ControlEvent{}) - 72]byte
 )

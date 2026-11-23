@@ -2,7 +2,11 @@
 
 package control
 
-import alsa "github.com/sparques/go-alsa"
+import (
+	"context"
+
+	alsa "github.com/sparques/go-alsa"
+)
 
 type handleCore struct{}
 
@@ -25,5 +29,7 @@ func (*Handle) ReadTLV(ElementID, int) ([]uint32, error) { return nil, alsa.ErrU
 func (*Handle) ReadDecodedTLV(ElementID, int) (TLV, error) {
 	return TLV{}, alsa.ErrUnsupportedPlatform
 }
-func (*Handle) WriteTLV(ElementID, []uint32) error   { return alsa.ErrUnsupportedPlatform }
-func (*Handle) CommandTLV(ElementID, []uint32) error { return alsa.ErrUnsupportedPlatform }
+func (*Handle) WriteTLV(ElementID, []uint32) error       { return alsa.ErrUnsupportedPlatform }
+func (*Handle) CommandTLV(ElementID, []uint32) error     { return alsa.ErrUnsupportedPlatform }
+func (*Handle) subscribe(bool) error                     { return alsa.ErrUnsupportedPlatform }
+func (*Handle) nextEvent(context.Context) (Event, error) { return Event{}, alsa.ErrUnsupportedPlatform }

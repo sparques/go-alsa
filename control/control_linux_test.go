@@ -3,11 +3,13 @@
 package control
 
 import (
+	"context"
 	"errors"
 	"os"
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	alsa "github.com/sparques/go-alsa"
 )
@@ -24,6 +26,68 @@ func TestResolveNumericCard(t *testing.T) {
 		if _, err := resolveCard(selector); !errors.Is(err, alsa.ErrMalformedDevice) {
 			t.Errorf("resolveCard(%q) error = %v; want ErrMalformedDevice", selector, err)
 		}
+	}
+}
+
+func TestControlHardwareEvent(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_CONTROL to a card number or ID")
+	}
+	subscriber, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer subscriber.Close()
+	actor, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer actor.Close()
+	ids, err := actor.Elements()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var target ElementID
+	var original ElementValue
+	for _, id := range ids {
+		info, err := actor.Info(id)
+		if err == nil && info.Type == TypeBoolean && info.Access.Readable() && info.Access.Writable() && !info.Access.Inactive() {
+			target = id
+			original, err = actor.Read(id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+	if target.Number == 0 {
+		t.Skip("card has no active writable control")
+	}
+	if err := subscriber.Subscribe(true); err != nil {
+		t.Fatal(err)
+	}
+	defer subscriber.Subscribe(false)
+	changed := original
+	changed.Booleans = append([]bool(nil), original.Booleans...)
+	changed.Booleans[0] = !changed.Booleans[0]
+	if err := actor.Write(changed); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := actor.Write(original); err != nil {
+			t.Errorf("restore %s: %v", target, err)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	event, err := subscriber.NextEvent(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.ID != target || event.Mask&EventValue == 0 {
+		t.Fatalf("event = %#v; want VALUE for %#v", event, target)
 	}
 }
 

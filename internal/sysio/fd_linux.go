@@ -17,6 +17,7 @@ type systemCalls interface {
 	Open(path string, flags int, mode uint32) (int, error)
 	Close(fd int) error
 	Ioctl(fd int, request uintptr, argument unsafe.Pointer) error
+	Read(fd int, buffer []byte) (int, error)
 }
 
 type linuxSystemCalls struct{}
@@ -26,6 +27,15 @@ func (linuxSystemCalls) Open(path string, flags int, mode uint32) (int, error) {
 }
 
 func (linuxSystemCalls) Close(fd int) error { return syscall.Close(fd) }
+
+func (linuxSystemCalls) Read(fd int, buffer []byte) (int, error) {
+	for {
+		count, err := syscall.Read(fd, buffer)
+		if err != syscall.EINTR {
+			return count, err
+		}
+	}
+}
 
 func (linuxSystemCalls) Ioctl(fd int, request uintptr, argument unsafe.Pointer) error {
 	for {
@@ -72,6 +82,16 @@ func (f *FD) Ioctl(request uintptr, argument unsafe.Pointer) error {
 		return io.ErrClosedPipe
 	}
 	return f.sys.Ioctl(f.number, request, argument)
+}
+
+// Read performs one nonblocking descriptor read while preventing reuse.
+func (f *FD) Read(buffer []byte) (int, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	if f.closed {
+		return 0, io.ErrClosedPipe
+	}
+	return f.sys.Read(f.number, buffer)
 }
 
 // Close closes the descriptor after any in-flight operation completes. It is

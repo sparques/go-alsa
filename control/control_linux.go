@@ -3,6 +3,7 @@
 package control
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	alsa "github.com/sparques/go-alsa"
 	"github.com/sparques/go-alsa/internal/sysio"
 	"github.com/sparques/go-alsa/internal/uapi"
+	"golang.org/x/sys/unix"
 )
 
 const maximumElements = 1 << 20
@@ -384,6 +386,48 @@ func (h *Handle) writeTLV(id ElementID, words []uint32, command bool) error {
 	}
 	runtime.KeepAlive(buffer)
 	return nil
+}
+
+func (h *Handle) subscribe(enabled bool) error {
+	value := int32(0)
+	if enabled {
+		value = 1
+	}
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlSubscribeEvents, unsafe.Pointer(&value)); err != nil {
+		return fmt.Errorf("alsa control: subscribe events: %w", err)
+	}
+	return nil
+}
+
+func (h *Handle) nextEvent(ctx context.Context) (Event, error) {
+	for {
+		if err := ctx.Err(); err != nil {
+			return Event{}, err
+		}
+		var raw uapi.ControlEvent
+		buffer := unsafe.Slice((*byte)(unsafe.Pointer(&raw)), int(unsafe.Sizeof(raw)))
+		count, err := h.core.fd.Read(buffer)
+		runtime.KeepAlive(&raw)
+		if err == nil {
+			if count != len(buffer) {
+				return Event{}, fmt.Errorf("alsa control: short event read %d of %d bytes", count, len(buffer))
+			}
+			if raw.Type != 0 {
+				return Event{}, fmt.Errorf("alsa control: unsupported event type %d", raw.Type)
+			}
+			return Event{Mask: EventMask(raw.Mask), ID: elementIDFromUAPI(raw.ID)}, nil
+		}
+		if !errors.Is(err, syscall.EAGAIN) {
+			return Event{}, fmt.Errorf("alsa control: read event: %w", err)
+		}
+		revents, err := h.core.fd.Wait(ctx, unix.POLLIN)
+		if err != nil {
+			return Event{}, err
+		}
+		if revents&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
+			return Event{}, fmt.Errorf("alsa control: event poll error %#x", revents)
+		}
+	}
 }
 
 func decodeIntegers(raw []byte, count uint32) []int64 {

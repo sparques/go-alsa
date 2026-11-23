@@ -26,6 +26,9 @@ int main(void) {
 	VALUE("control_element_write_ioctl", SNDRV_CTL_IOCTL_ELEM_WRITE);
 	VALUE("control_element_lock_ioctl", SNDRV_CTL_IOCTL_ELEM_LOCK);
 	VALUE("control_element_unlock_ioctl", SNDRV_CTL_IOCTL_ELEM_UNLOCK);
+	VALUE("control_event_size", sizeof(struct snd_ctl_event));
+	VALUE("control_event_id_offset", offsetof(struct snd_ctl_event, data.elem.id));
+	VALUE("control_subscribe_ioctl", SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS);
 	VALUE("control_tlv_header_size", sizeof(struct snd_ctl_tlv));
 	VALUE("control_tlv_read_ioctl", SNDRV_CTL_IOCTL_TLV_READ);
 	VALUE("control_tlv_write_ioctl", SNDRV_CTL_IOCTL_TLV_WRITE);

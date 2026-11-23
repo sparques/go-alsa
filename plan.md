@@ -64,7 +64,8 @@ item does not imply that its phase exit criteria have been met.
   - [x] Implement element locks and bounded raw TLV read/write/command support.
   - [x] Decode standard dB scale/linear/min-max/range, container, and channel-map
     TLVs with nesting and bounds checks.
-  - [ ] Implement events and remaining raw control operations.
+  - [x] Implement cancellation-aware ordered control event subscriptions.
+  - [ ] Implement remaining raw control operations and event stress tests.
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**

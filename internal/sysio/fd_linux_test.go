@@ -26,6 +26,13 @@ type fakeSystemCalls struct {
 	ioctlDone  chan struct{}
 }
 
+func (f *fakeSystemCalls) Read(fd int, buffer []byte) (int, error) {
+	if fd != f.fd {
+		return 0, syscall.EBADF
+	}
+	return 0, syscall.EAGAIN
+}
+
 func TestFDWaitCancellation(t *testing.T) {
 	t.Parallel()
 	pipe := make([]int, 2)
