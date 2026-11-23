@@ -23,13 +23,69 @@ type ControlCardInfo struct {
 	Components [128]byte
 }
 
+// ControlElementID matches struct snd_ctl_elem_id.
+type ControlElementID struct {
+	Number    uint32
+	Interface int32
+	Device    uint32
+	Subdevice uint32
+	Name      [44]byte
+	Index     uint32
+}
+
+// ControlElementList matches struct snd_ctl_elem_list on supported 64-bit
+// Linux architectures.
+type ControlElementList struct {
+	Offset   uint32
+	Space    uint32
+	Used     uint32
+	Count    uint32
+	IDs      uintptr
+	Reserved [50]byte
+	Pad      [6]byte
+}
+
+// ControlElementInfo matches struct snd_ctl_elem_info. Value is the 128-byte
+// tagged union interpreted according to Type.
+type ControlElementInfo struct {
+	ID       ControlElementID
+	Type     int32
+	Access   uint32
+	Count    uint32
+	Owner    int32
+	Value    [128]byte
+	Reserved [64]byte
+}
+
+// ControlElementValue matches struct snd_ctl_elem_value. Value is the largest
+// union arm: 128 native longs on supported 64-bit architectures.
+type ControlElementValue struct {
+	ID       ControlElementID
+	Indirect uint32
+	Pad      uint32
+	Value    [1024]byte
+	Reserved [128]byte
+}
+
 const (
 	ControlIoctlProtocolVersion = uintptr(0x80045500)
 	ControlIoctlCardInfo        = uintptr(0x81785501)
+	ControlIoctlElementList     = uintptr(0xc0505510)
+	ControlIoctlElementInfo     = uintptr(0xc1105511)
+	ControlIoctlElementRead     = uintptr(0xc4c85512)
+	ControlIoctlElementWrite    = uintptr(0xc4c85513)
 )
 
 // Compile-time size checks fail in either direction if the structure changes.
 var (
 	_ [376 - unsafe.Sizeof(ControlCardInfo{})]byte
 	_ [unsafe.Sizeof(ControlCardInfo{}) - 376]byte
+	_ [64 - unsafe.Sizeof(ControlElementID{})]byte
+	_ [unsafe.Sizeof(ControlElementID{}) - 64]byte
+	_ [80 - unsafe.Sizeof(ControlElementList{})]byte
+	_ [unsafe.Sizeof(ControlElementList{}) - 80]byte
+	_ [272 - unsafe.Sizeof(ControlElementInfo{})]byte
+	_ [unsafe.Sizeof(ControlElementInfo{}) - 272]byte
+	_ [1224 - unsafe.Sizeof(ControlElementValue{})]byte
+	_ [unsafe.Sizeof(ControlElementValue{}) - 1224]byte
 )

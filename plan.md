@@ -57,6 +57,11 @@ item does not imply that its phase exit criteria have been met.
     transfers remain available for interleaved S16_LE; broader negotiation and
     remaining lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
+  - [x] Open controls by numeric card or stable ID, enumerate full element IDs,
+    and query typed metadata, access flags, integer ranges, and enum item names.
+  - [x] Read and validate/write boolean, integer, integer64, enumerated, bytes,
+    and IEC958 values.
+  - [ ] Implement locks, TLVs, events, and remaining raw control operations.
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**

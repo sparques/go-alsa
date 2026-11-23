@@ -13,6 +13,17 @@ int main(void) {
 	VALUE("control_components_offset", offsetof(struct snd_ctl_card_info, components));
 	VALUE("control_pversion_ioctl", SNDRV_CTL_IOCTL_PVERSION);
 	VALUE("control_card_info_ioctl", SNDRV_CTL_IOCTL_CARD_INFO);
+	VALUE("control_element_id_size", sizeof(struct snd_ctl_elem_id));
+	VALUE("control_element_list_size", sizeof(struct snd_ctl_elem_list));
+	VALUE("control_list_ids_offset", offsetof(struct snd_ctl_elem_list, pids));
+	VALUE("control_element_info_size", sizeof(struct snd_ctl_elem_info));
+	VALUE("control_info_value_offset", offsetof(struct snd_ctl_elem_info, value));
+	VALUE("control_element_list_ioctl", SNDRV_CTL_IOCTL_ELEM_LIST);
+	VALUE("control_element_info_ioctl", SNDRV_CTL_IOCTL_ELEM_INFO);
+	VALUE("control_element_value_size", sizeof(struct snd_ctl_elem_value));
+	VALUE("control_value_data_offset", offsetof(struct snd_ctl_elem_value, value));
+	VALUE("control_element_read_ioctl", SNDRV_CTL_IOCTL_ELEM_READ);
+	VALUE("control_element_write_ioctl", SNDRV_CTL_IOCTL_ELEM_WRITE);
 	VALUE("pcm_protocol", SNDRV_PCM_VERSION);
 	VALUE("pcm_pversion_ioctl", SNDRV_PCM_IOCTL_PVERSION);
 	VALUE("pcm_info_ioctl", SNDRV_PCM_IOCTL_INFO);

@@ -1,0 +1,93 @@
+//go:build linux && (amd64 || arm64)
+
+package control
+
+import (
+	"errors"
+	"os"
+	"reflect"
+	"strconv"
+	"testing"
+
+	alsa "github.com/sparques/go-alsa"
+)
+
+func TestResolveNumericCard(t *testing.T) {
+	t.Parallel()
+	for _, selector := range []string{"3", "hw:3", "hw:CARD=3"} {
+		got, err := resolveCard(selector)
+		if err != nil || got != 3 {
+			t.Errorf("resolveCard(%q) = %d, %v; want 3, nil", selector, got, err)
+		}
+	}
+	for _, selector := range []string{"", "-1", "hw:", "hw:3,0"} {
+		if _, err := resolveCard(selector); !errors.Is(err, alsa.ErrMalformedDevice) {
+			t.Errorf("resolveCard(%q) error = %v; want ErrMalformedDevice", selector, err)
+		}
+	}
+}
+
+func TestElementIDRoundTrip(t *testing.T) {
+	t.Parallel()
+	want := ElementID{Number: 7, Interface: InterfaceMixer, Device: 2, Subdevice: 3, Name: "Speaker Playback Switch", Index: 1}
+	if got := elementIDFromUAPI(elementIDToUAPI(want)); got != want {
+		t.Fatalf("round trip = %#v; want %#v", got, want)
+	}
+}
+
+func TestControlHardware(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_CONTROL to a card number or ID")
+	}
+	handle, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	ids, err := handle.Elements()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) == 0 {
+		t.Fatal("card has no controls")
+	}
+	for _, id := range ids {
+		if id.Number == 0 || id.Name == "" {
+			t.Errorf("invalid ID: %#v", id)
+		}
+		info, err := handle.Info(id)
+		if err != nil {
+			t.Fatalf("Info(%s): %v", id, err)
+		}
+		if info.ID != id || info.Type == TypeNone || info.Count == 0 {
+			t.Errorf("invalid info: %#v", info)
+		}
+		if info.Type == TypeEnumerated {
+			for item := uint32(0); item < info.Enumerated.Items; item++ {
+				itemInfo, err := handle.EnumeratedItem(id, item)
+				if err != nil || itemInfo.Enumerated.SelectedItem != item || itemInfo.Enumerated.ItemName == "" {
+					t.Errorf("enumerated item %d for %s = %#v, %v", item, id, itemInfo, err)
+				}
+			}
+		}
+		if info.Access.Readable() {
+			value, err := handle.Read(id)
+			if err != nil {
+				t.Errorf("Read(%s): %v", id, err)
+				continue
+			}
+			if info.Access.Writable() && !info.Access.Inactive() {
+				if err := handle.Write(value); err != nil {
+					t.Errorf("write unchanged %s: %v", id, err)
+					continue
+				}
+				after, err := handle.Read(id)
+				if err != nil || !reflect.DeepEqual(after, value) {
+					t.Errorf("unchanged round trip %s = %#v, %v; want %#v", id, after, err, value)
+				}
+			}
+		}
+	}
+	t.Logf("card %s exposes %s controls", selector, strconv.Itoa(len(ids)))
+}
