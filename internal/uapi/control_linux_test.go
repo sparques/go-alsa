@@ -64,3 +64,23 @@ func TestControlElementLayoutsAndIoctls(t *testing.T) {
 		t.Fatalf("ELEM_WRITE ioctl = %#x; want %#x", got, ControlIoctlElementWrite)
 	}
 }
+
+func TestControlLockAndTLVIoctls(t *testing.T) {
+	t.Parallel()
+	if got := iow(controlIoctlType, 0x14, unsafe.Sizeof(ControlElementID{})); got != ControlIoctlElementLock {
+		t.Fatalf("ELEM_LOCK ioctl = %#x; want %#x", got, ControlIoctlElementLock)
+	}
+	if got := iow(controlIoctlType, 0x15, unsafe.Sizeof(ControlElementID{})); got != ControlIoctlElementUnlock {
+		t.Fatalf("ELEM_UNLOCK ioctl = %#x; want %#x", got, ControlIoctlElementUnlock)
+	}
+	for _, check := range []struct {
+		number byte
+		want   uintptr
+	}{
+		{0x1a, ControlIoctlTLVRead}, {0x1b, ControlIoctlTLVWrite}, {0x1c, ControlIoctlTLVCommand},
+	} {
+		if got := iowr(controlIoctlType, uintptr(check.number), 8); got != check.want {
+			t.Errorf("TLV %#x ioctl = %#x; want %#x", check.number, got, check.want)
+		}
+	}
+}

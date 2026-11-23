@@ -24,6 +24,12 @@ int main(void) {
 	VALUE("control_value_data_offset", offsetof(struct snd_ctl_elem_value, value));
 	VALUE("control_element_read_ioctl", SNDRV_CTL_IOCTL_ELEM_READ);
 	VALUE("control_element_write_ioctl", SNDRV_CTL_IOCTL_ELEM_WRITE);
+	VALUE("control_element_lock_ioctl", SNDRV_CTL_IOCTL_ELEM_LOCK);
+	VALUE("control_element_unlock_ioctl", SNDRV_CTL_IOCTL_ELEM_UNLOCK);
+	VALUE("control_tlv_header_size", sizeof(struct snd_ctl_tlv));
+	VALUE("control_tlv_read_ioctl", SNDRV_CTL_IOCTL_TLV_READ);
+	VALUE("control_tlv_write_ioctl", SNDRV_CTL_IOCTL_TLV_WRITE);
+	VALUE("control_tlv_command_ioctl", SNDRV_CTL_IOCTL_TLV_COMMAND);
 	VALUE("pcm_protocol", SNDRV_PCM_VERSION);
 	VALUE("pcm_pversion_ioctl", SNDRV_PCM_IOCTL_PVERSION);
 	VALUE("pcm_info_ioctl", SNDRV_PCM_IOCTL_INFO);

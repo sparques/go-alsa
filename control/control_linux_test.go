@@ -52,6 +52,8 @@ func TestControlHardware(t *testing.T) {
 	if len(ids) == 0 {
 		t.Fatal("card has no controls")
 	}
+	locked := false
+	tlvCount := 0
 	for _, id := range ids {
 		if id.Number == 0 || id.Name == "" {
 			t.Errorf("invalid ID: %#v", id)
@@ -69,6 +71,24 @@ func TestControlHardware(t *testing.T) {
 				if err != nil || itemInfo.Enumerated.SelectedItem != item || itemInfo.Enumerated.ItemName == "" {
 					t.Errorf("enumerated item %d for %s = %#v, %v", item, id, itemInfo, err)
 				}
+			}
+		}
+		if info.Access.TLVReadable() {
+			decoded, err := handle.ReadDecodedTLV(id, 4096)
+			if err != nil {
+				t.Errorf("ReadDecodedTLV(%s) = %#v, %v", id, decoded, err)
+			} else {
+				tlvCount++
+			}
+		}
+		if !locked && info.Access.Writable() && !info.Access.Inactive() {
+			if err := handle.Lock(id); err != nil {
+				t.Errorf("Lock(%s): %v", id, err)
+			} else {
+				if err := handle.Unlock(id); err != nil {
+					t.Errorf("Unlock(%s): %v", id, err)
+				}
+				locked = true
 			}
 		}
 		if info.Access.Readable() {
@@ -89,5 +109,5 @@ func TestControlHardware(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("card %s exposes %s controls", selector, strconv.Itoa(len(ids)))
+	t.Logf("card %s exposes %s controls, %d readable TLVs", selector, strconv.Itoa(len(ids)), tlvCount)
 }

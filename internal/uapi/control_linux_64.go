@@ -74,6 +74,11 @@ const (
 	ControlIoctlElementInfo     = uintptr(0xc1105511)
 	ControlIoctlElementRead     = uintptr(0xc4c85512)
 	ControlIoctlElementWrite    = uintptr(0xc4c85513)
+	ControlIoctlElementLock     = uintptr(0x40405514)
+	ControlIoctlElementUnlock   = uintptr(0x40405515)
+	ControlIoctlTLVRead         = uintptr(0xc008551a)
+	ControlIoctlTLVWrite        = uintptr(0xc008551b)
+	ControlIoctlTLVCommand      = uintptr(0xc008551c)
 )
 
 // Compile-time size checks fail in either direction if the structure changes.

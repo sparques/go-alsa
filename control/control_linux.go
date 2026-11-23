@@ -19,6 +19,7 @@ import (
 )
 
 const maximumElements = 1 << 20
+const maximumTLVBytes = 1 << 20
 
 type handleCore struct{ fd *sysio.FD }
 
@@ -273,6 +274,115 @@ func (h *Handle) Write(value ElementValue) error {
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementWrite, unsafe.Pointer(&raw)); err != nil {
 		return fmt.Errorf("alsa control: write element %s: %w", value.ID, err)
 	}
+	return nil
+}
+
+// Lock obtains the kernel write lock for an element. Locks are also released
+// when the control handle closes.
+func (h *Handle) Lock(id ElementID) error {
+	raw := elementIDToUAPI(id)
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementLock, unsafe.Pointer(&raw)); err != nil {
+		return fmt.Errorf("alsa control: lock element %s: %w", id, err)
+	}
+	return nil
+}
+
+// Unlock releases a kernel element write lock held by this handle.
+func (h *Handle) Unlock(id ElementID) error {
+	raw := elementIDToUAPI(id)
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementUnlock, unsafe.Pointer(&raw)); err != nil {
+		return fmt.Errorf("alsa control: unlock element %s: %w", id, err)
+	}
+	return nil
+}
+
+// ReadTLV reads up to maximumBytes of raw TLV words. The returned slice begins
+// with the ALSA TLV type and payload-length words.
+func (h *Handle) ReadTLV(id ElementID, maximumBytes int) ([]uint32, error) {
+	info, err := h.Info(id)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Access.TLVReadable() {
+		return nil, fmt.Errorf("alsa control: element %s has no readable TLV", id)
+	}
+	if maximumBytes < 8 || maximumBytes > maximumTLVBytes || maximumBytes%4 != 0 {
+		return nil, fmt.Errorf("alsa control: TLV maximum must be aligned and between 8 and %d bytes", maximumTLVBytes)
+	}
+	buffer := make([]byte, 8+maximumBytes)
+	binary.NativeEndian.PutUint32(buffer[0:4], id.Number)
+	binary.NativeEndian.PutUint32(buffer[4:8], uint32(maximumBytes))
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlTLVRead, unsafe.Pointer(unsafe.SliceData(buffer))); err != nil {
+		runtime.KeepAlive(buffer)
+		return nil, fmt.Errorf("alsa control: read TLV for %s: %w", id, err)
+	}
+	runtime.KeepAlive(buffer)
+	length := int(binary.NativeEndian.Uint32(buffer[12:16])) + 8
+	if length < 8 || length > maximumBytes || length%4 != 0 {
+		return nil, fmt.Errorf("alsa control: kernel returned invalid TLV length %d", length)
+	}
+	words := make([]uint32, length/4)
+	for index := range words {
+		words[index] = binary.NativeEndian.Uint32(buffer[8+index*4:])
+	}
+	return words, nil
+}
+
+// ReadDecodedTLV reads and decodes standard dB, container, range, and
+// channel-map forms.
+func (h *Handle) ReadDecodedTLV(id ElementID, maximumBytes int) (TLV, error) {
+	words, err := h.ReadTLV(id, maximumBytes)
+	if err != nil {
+		return TLV{}, err
+	}
+	return ParseTLV(words)
+}
+
+// WriteTLV writes raw TLV words, beginning with type and payload length.
+func (h *Handle) WriteTLV(id ElementID, words []uint32) error {
+	return h.writeTLV(id, words, false)
+}
+
+// CommandTLV sends a raw TLV command to an element.
+func (h *Handle) CommandTLV(id ElementID, words []uint32) error {
+	return h.writeTLV(id, words, true)
+}
+
+func (h *Handle) writeTLV(id ElementID, words []uint32, command bool) error {
+	info, err := h.Info(id)
+	if err != nil {
+		return err
+	}
+	if command && !info.Access.TLVCommandable() {
+		return fmt.Errorf("alsa control: element %s accepts no TLV commands", id)
+	}
+	if !command && !info.Access.TLVWritable() {
+		return fmt.Errorf("alsa control: element %s has no writable TLV", id)
+	}
+	length := len(words) * 4
+	if length < 8 || length > maximumTLVBytes {
+		return fmt.Errorf("alsa control: TLV payload must be between 8 and %d bytes", maximumTLVBytes)
+	}
+	if int(words[1])+8 != length {
+		return fmt.Errorf("alsa control: TLV length word %d does not match %d-byte value", words[1], length)
+	}
+	buffer := make([]byte, 8+length)
+	binary.NativeEndian.PutUint32(buffer[0:4], id.Number)
+	binary.NativeEndian.PutUint32(buffer[4:8], uint32(length))
+	for index, word := range words {
+		binary.NativeEndian.PutUint32(buffer[8+index*4:], word)
+	}
+	request := uapi.ControlIoctlTLVWrite
+	operation := "write"
+	if command {
+		request = uapi.ControlIoctlTLVCommand
+		operation = "command"
+	}
+	if err := h.core.fd.Ioctl(request, unsafe.Pointer(unsafe.SliceData(buffer))); err != nil {
+		runtime.KeepAlive(buffer)
+		return fmt.Errorf("alsa control: %s TLV for %s: %w", operation, id, err)
+	}
+	runtime.KeepAlive(buffer)
 	return nil
 }
 

@@ -61,7 +61,10 @@ item does not imply that its phase exit criteria have been met.
     and query typed metadata, access flags, integer ranges, and enum item names.
   - [x] Read and validate/write boolean, integer, integer64, enumerated, bytes,
     and IEC958 values.
-  - [ ] Implement locks, TLVs, events, and remaining raw control operations.
+  - [x] Implement element locks and bounded raw TLV read/write/command support.
+  - [x] Decode standard dB scale/linear/min-max/range, container, and channel-map
+    TLVs with nesting and bounds checks.
+  - [ ] Implement events and remaining raw control operations.
 - [ ] **Phase 5 — simple mixer layer**
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**

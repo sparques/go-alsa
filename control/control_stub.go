@@ -18,4 +18,12 @@ func (*Handle) EnumeratedItem(ElementID, uint32) (ElementInfo, error) {
 func (*Handle) Read(ElementID) (ElementValue, error) {
 	return ElementValue{}, alsa.ErrUnsupportedPlatform
 }
-func (*Handle) Write(ElementValue) error { return alsa.ErrUnsupportedPlatform }
+func (*Handle) Write(ElementValue) error                 { return alsa.ErrUnsupportedPlatform }
+func (*Handle) Lock(ElementID) error                     { return alsa.ErrUnsupportedPlatform }
+func (*Handle) Unlock(ElementID) error                   { return alsa.ErrUnsupportedPlatform }
+func (*Handle) ReadTLV(ElementID, int) ([]uint32, error) { return nil, alsa.ErrUnsupportedPlatform }
+func (*Handle) ReadDecodedTLV(ElementID, int) (TLV, error) {
+	return TLV{}, alsa.ErrUnsupportedPlatform
+}
+func (*Handle) WriteTLV(ElementID, []uint32) error   { return alsa.ErrUnsupportedPlatform }
+func (*Handle) CommandTLV(ElementID, []uint32) error { return alsa.ErrUnsupportedPlatform }

@@ -76,9 +76,12 @@ const (
 	AccessUser        Access = 1 << 29
 )
 
-func (a Access) Readable() bool { return a&AccessRead != 0 }
-func (a Access) Writable() bool { return a&AccessWrite != 0 }
-func (a Access) Inactive() bool { return a&AccessInactive != 0 }
+func (a Access) Readable() bool       { return a&AccessRead != 0 }
+func (a Access) Writable() bool       { return a&AccessWrite != 0 }
+func (a Access) Inactive() bool       { return a&AccessInactive != 0 }
+func (a Access) TLVReadable() bool    { return a&AccessTLVRead != 0 }
+func (a Access) TLVWritable() bool    { return a&AccessTLVWrite != 0 }
+func (a Access) TLVCommandable() bool { return a&AccessTLVCommand != 0 }
 
 // IntegerRange describes integer and integer64 controls.
 type IntegerRange struct {
