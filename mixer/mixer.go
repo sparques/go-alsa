@@ -162,10 +162,24 @@ type EnumeratedElement struct {
 	h     *Handle
 	item  binding
 	items []string
+
+	direction        Direction
+	captureExclusive bool
 }
 
 // Items returns the kernel-reported item names in selection-index order.
 func (e *EnumeratedElement) Items() []string { return append([]string(nil), e.items...) }
+
+// Direction returns a direction only when alsa-lib defines one from the raw
+// control name. DirectionUnknown preserves genuinely global/vendor controls.
+func (e *EnumeratedElement) Direction() Direction { return e.direction }
+
+// CaptureExclusive reports ALSA's special Capture Source enumeration, where
+// selecting one item excludes the other source items for that channel.
+func (e *EnumeratedElement) CaptureExclusive() bool { return e.captureExclusive }
+
+// Channels returns the channel identity corresponding to each selected value.
+func (e *EnumeratedElement) Channels() []Channel { return channelsForCount(e.item.info.Count) }
 
 // Writable reports whether the enumeration is active and writable.
 func (e *EnumeratedElement) Writable() bool {
@@ -213,7 +227,11 @@ func (h *Handle) EnumeratedElements() ([]*EnumeratedElement, error) {
 		if info.Type != control.TypeEnumerated {
 			continue
 		}
-		item := &EnumeratedElement{Name: id.Name, Index: id.Index, h: h, item: binding{id: id, info: info}}
+		direction, exclusive := enumeratedSemantics(id.Name)
+		item := &EnumeratedElement{
+			Name: id.Name, Index: id.Index, h: h, item: binding{id: id, info: info},
+			direction: direction, captureExclusive: exclusive,
+		}
 		item.items = make([]string, info.Enumerated.Items)
 		for index := range item.items {
 			itemInfo, err := h.control.EnumeratedItem(id, uint32(index))
@@ -233,6 +251,19 @@ func (h *Handle) EnumeratedElements() ([]*EnumeratedElement, error) {
 	h.enumerationsCache = result
 	h.enumerationsCached = true
 	return cloneEnumeratedElements(result), nil
+}
+
+func enumeratedSemantics(name string) (Direction, bool) {
+	if name == "Capture Source" {
+		return DirectionCapture, true
+	}
+	if name == "Input Source" || strings.HasSuffix(name, " Capture Enum") {
+		return DirectionCapture, false
+	}
+	if strings.HasSuffix(name, " Playback Enum") {
+		return DirectionPlayback, false
+	}
+	return DirectionUnknown, false
 }
 
 func cloneEnumeratedElements(elements []*EnumeratedElement) []*EnumeratedElement {

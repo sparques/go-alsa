@@ -100,8 +100,8 @@ func TestMixerHardware(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("enum %q index=%d values=%v items=%q writable=%v",
-			element.Name, element.Index, values, element.Items(), element.Writable())
+		t.Logf("enum %q index=%d direction=%d exclusive=%v channels=%v values=%v items=%q writable=%v",
+			element.Name, element.Index, element.Direction(), element.CaptureExclusive(), element.Channels(), values, element.Items(), element.Writable())
 		if element.Writable() {
 			if err := element.SetValues(values); err != nil {
 				t.Fatal(err)

@@ -80,7 +80,9 @@ item does not imply that its phase exit criteria have been met.
     uncached values, and INFO/ADD/REMOVE/TLV event invalidation.
   - [x] Match simple-none playback/capture/global suffix and unsuffixed-control
     grouping; expose alsa-lib channel identities plus common/joined capabilities.
-  - [ ] Add capture-source exclusivity and broader hardware fixtures.
+  - [x] Classify enumerated directions and identify per-channel exclusive
+    Capture Source selection groups without guessing vendor-specific names.
+  - [ ] Add broader hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**

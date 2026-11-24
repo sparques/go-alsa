@@ -88,6 +88,33 @@ func TestEnumeratedElementMetadata(t *testing.T) {
 	}
 }
 
+func TestEnumeratedSemantics(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		direction Direction
+		exclusive bool
+	}{
+		{"Capture Source", DirectionCapture, true},
+		{"Input Source", DirectionCapture, false},
+		{"ADC Capture Enum", DirectionCapture, false},
+		{"DAC Playback Enum", DirectionPlayback, false},
+		{"Auto-Mute Mode", DirectionUnknown, false},
+	} {
+		direction, exclusive := enumeratedSemantics(test.name)
+		if direction != test.direction || exclusive != test.exclusive {
+			t.Errorf("enumeratedSemantics(%q) = %v, %v; want %v, %v", test.name, direction, exclusive, test.direction, test.exclusive)
+		}
+	}
+	element := &EnumeratedElement{direction: DirectionCapture, captureExclusive: true, item: binding{info: control.ElementInfo{Count: 2}}}
+	if element.Direction() != DirectionCapture || !element.CaptureExclusive() {
+		t.Fatal("enumerated capability accessors do not reflect metadata")
+	}
+	channels := element.Channels()
+	if len(channels) != 2 || channels[0] != ChannelFrontLeft || channels[1] != ChannelFrontRight {
+		t.Fatalf("enumerated Channels() = %v", channels)
+	}
+}
+
 func TestDiscoveryCacheDefensiveCopiesAndRefresh(t *testing.T) {
 	handle := &Handle{}
 	handle.elementsCached = true
