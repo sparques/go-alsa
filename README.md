@@ -29,6 +29,19 @@ Linux amd64 and arm64 are the initial release-blocking architectures.
 Run `go run ./cmd/alsa-info-go` to inspect the cards and PCM devices reported by
 the kernel.
 
+`alsa-pcm-go` is a headerless raw-PCM capture/playback smoke tool built entirely
+on the public Go API. For example, capture five seconds of mono 48 kHz S16_LE:
+
+```sh
+go run ./cmd/alsa-pcm-go -device hw:3,0 -capture -channels 1 -duration 5s > capture.raw
+```
+
+Play a stereo raw stream through a device with exact parameters:
+
+```sh
+go run ./cmd/alsa-pcm-go -device hw:3,0 -channels 2 -exact < playback.raw
+```
+
 Direct hardware names can be parsed and resolved without libasound:
 
 ```go
