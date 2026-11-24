@@ -400,7 +400,28 @@ type SoftwareConfig struct {
 	StopThreshold    uint64
 	SilenceThreshold uint64
 	SilenceFrames    uint64
+	TimestampMode    TimestampMode
+	TimestampClock   TimestampClock
 }
+
+// TimestampMode controls whether Status timestamps are updated by the kernel.
+type TimestampMode int32
+
+const (
+	TimestampDisabled TimestampMode = iota
+	TimestampEnabled
+)
+
+// TimestampClock selects the clock used for kernel PCM status timestamps.
+// Realtime is the legacy ALSA default. Monotonic clocks avoid wall-clock
+// adjustments and are generally preferable for measuring stream timing.
+type TimestampClock uint32
+
+const (
+	TimestampRealtime TimestampClock = iota
+	TimestampMonotonic
+	TimestampMonotonicRaw
+)
 
 // SoftwareSetup is the software-parameter set accepted by the kernel.
 type SoftwareSetup struct {

@@ -119,11 +119,15 @@ func TestConfigureHardware(t *testing.T) {
 	if setup.Access != config.Access || setup.Format != config.Format || setup.Channels != config.Channels || setup.Rate != config.Rate {
 		t.Errorf("setup = %#v; requested %#v", setup, config)
 	}
-	software, err := handle.ConfigureSoftwareDefaults()
+	softwareConfig := DefaultSoftwareConfig(stream == alsa.Playback, setup)
+	softwareConfig.TimestampMode = TimestampEnabled
+	softwareConfig.TimestampClock = TimestampMonotonic
+	software, err := handle.ConfigureSoftware(softwareConfig)
 	if err != nil {
-		t.Fatalf("ConfigureSoftwareDefaults: %v", err)
+		t.Fatalf("ConfigureSoftware: %v", err)
 	}
-	if software.AvailableMinimum != setup.PeriodFrames || software.Boundary <= uint64(setup.BufferFrames) {
+	if software.AvailableMinimum != setup.PeriodFrames || software.Boundary <= uint64(setup.BufferFrames) ||
+		software.TimestampMode != TimestampEnabled || software.TimestampClock != TimestampMonotonic {
 		t.Errorf("software setup = %#v", software)
 	}
 	if err := handle.Prepare(); err != nil {

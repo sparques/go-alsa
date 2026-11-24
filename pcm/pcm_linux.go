@@ -119,8 +119,8 @@ func (h *Handle) ConfigureHardware(config HardwareConfig) (HardwareSetup, error)
 	return setup, nil
 }
 
-// ConfigureSoftware applies wake, start, stop, and silence thresholds. Hardware
-// parameters must have been configured first.
+// ConfigureSoftware applies wake, start, stop, silence, and timestamp policy.
+// Hardware parameters must have been configured first.
 func (h *Handle) ConfigureSoftware(config SoftwareConfig) (SoftwareSetup, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -130,8 +130,28 @@ func (h *Handle) ConfigureSoftware(config SoftwareConfig) (SoftwareSetup, error)
 	if err := validateSoftwareConfig(config, *h.hardware); err != nil {
 		return SoftwareSetup{}, err
 	}
-	boundary := ringBoundary(uint64(h.hardware.BufferFrames))
-	params := uapi.PCMSWParams{
+	params := softwareParams(config, *h.hardware, uint32(h.core.protocol))
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlSWParams, unsafe.Pointer(&params)); err != nil {
+		return SoftwareSetup{}, fmt.Errorf("alsa pcm: configure software: %w", err)
+	}
+	accepted := SoftwareConfig{
+		AvailableMinimum: int(params.AvailableMinimum),
+		StartThreshold:   params.StartThreshold,
+		StopThreshold:    params.StopThreshold,
+		SilenceThreshold: params.SilenceThreshold,
+		SilenceFrames:    params.SilenceSize,
+		TimestampMode:    TimestampMode(params.TimestampMode),
+		TimestampClock:   TimestampClock(params.TimestampType),
+	}
+	setup := SoftwareSetup{SoftwareConfig: accepted, Boundary: params.Boundary}
+	h.software = &setup
+	h.prepared = false
+	return setup, nil
+}
+
+func softwareParams(config SoftwareConfig, hardware HardwareSetup, protocol uint32) uapi.PCMSWParams {
+	return uapi.PCMSWParams{
+		TimestampMode:    int32(config.TimestampMode),
 		PeriodStep:       1,
 		AvailableMinimum: uint64(config.AvailableMinimum),
 		TransferAlign:    1,
@@ -139,16 +159,10 @@ func (h *Handle) ConfigureSoftware(config SoftwareConfig) (SoftwareSetup, error)
 		StopThreshold:    config.StopThreshold,
 		SilenceThreshold: config.SilenceThreshold,
 		SilenceSize:      config.SilenceFrames,
-		Boundary:         boundary,
-		Protocol:         uint32(h.core.protocol),
+		Boundary:         ringBoundary(uint64(hardware.BufferFrames)),
+		Protocol:         protocol,
+		TimestampType:    uint32(config.TimestampClock),
 	}
-	if err := h.core.fd.Ioctl(uapi.PCMIoctlSWParams, unsafe.Pointer(&params)); err != nil {
-		return SoftwareSetup{}, fmt.Errorf("alsa pcm: configure software: %w", err)
-	}
-	setup := SoftwareSetup{SoftwareConfig: config, Boundary: params.Boundary}
-	h.software = &setup
-	h.prepared = false
-	return setup, nil
 }
 
 // ConfigureSoftwareDefaults applies the package defaults for this stream.
@@ -556,6 +570,12 @@ func (h *Handle) recoverXRUN(capture bool) error {
 }
 
 func validateSoftwareConfig(config SoftwareConfig, hardware HardwareSetup) error {
+	if config.TimestampMode != TimestampDisabled && config.TimestampMode != TimestampEnabled {
+		return errors.New("alsa pcm: invalid timestamp mode")
+	}
+	if config.TimestampClock > TimestampMonotonicRaw {
+		return errors.New("alsa pcm: invalid timestamp clock")
+	}
 	if config.AvailableMinimum <= 0 || uint64(config.AvailableMinimum) > uint64(hardware.BufferFrames) {
 		return errors.New("alsa pcm: available minimum must be within the hardware buffer")
 	}
