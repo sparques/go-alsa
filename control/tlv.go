@@ -4,6 +4,9 @@ import "fmt"
 
 type TLVType uint32
 
+// DBGainMute is ALSA's hundredths-of-a-decibel sentinel for complete mute.
+const DBGainMute int32 = -9999999
+
 const (
 	TLVContainer          TLVType = 0
 	TLVDBScale            TLVType = 1

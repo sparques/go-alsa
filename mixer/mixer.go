@@ -409,13 +409,37 @@ func rawToDB(raw int64, integer control.IntegerRange, tlv control.TLV) (int32, b
 	if tlv.DB != nil {
 		switch tlv.Type {
 		case control.TLVDBScale:
+			if tlv.DB.Mute && raw <= integer.Minimum {
+				return control.DBGainMute, true
+			}
 			return tlv.DB.Minimum + int32((raw-integer.Minimum)*int64(tlv.DB.Step)), true
 		case control.TLVDBMinMax, control.TLVDBMinMaxMute:
 			span := integer.Maximum - integer.Minimum
-			if span <= 0 {
+			if raw <= integer.Minimum || span <= 0 {
+				if tlv.Type == control.TLVDBMinMaxMute {
+					return control.DBGainMute, true
+				}
 				return tlv.DB.Minimum, true
 			}
+			if raw >= integer.Maximum {
+				return tlv.DB.Maximum, true
+			}
 			return tlv.DB.Minimum + int32((raw-integer.Minimum)*int64(tlv.DB.Maximum-tlv.DB.Minimum)/span), true
+		case control.TLVDBLinear:
+			if raw <= integer.Minimum || integer.Maximum <= integer.Minimum {
+				return tlv.DB.Minimum, true
+			}
+			if raw >= integer.Maximum {
+				return tlv.DB.Maximum, true
+			}
+			value := float64(raw-integer.Minimum) / float64(integer.Maximum-integer.Minimum)
+			if tlv.DB.Minimum <= control.DBGainMute {
+				return int32(2000*math.Log10(value)) + tlv.DB.Maximum, true
+			}
+			linearMinimum := math.Pow(10, float64(tlv.DB.Minimum)/2000)
+			linearMaximum := math.Pow(10, float64(tlv.DB.Maximum)/2000)
+			amplitude := (linearMaximum-linearMinimum)*value + linearMinimum
+			return int32(2000 * math.Log10(amplitude)), true
 		}
 	}
 	if tlv.Type == control.TLVDBRange {

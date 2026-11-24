@@ -69,7 +69,8 @@ item does not imply that its phase exit criteria have been met.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name
     and index; provide typed reads and validated writes.
-  - [x] Convert dB scale, min/max, and range TLVs to hundredths-of-dB values.
+  - [x] Convert dB scale, linear-amplitude, min/max, mute, and range TLVs to
+    alsa-lib-compatible hundredths-of-dB values.
   - [x] Add bounded, step-aware normalized raw-volume APIs.
   - [x] Forward cancellation-aware control events with simple-element
     direction and kind classification while retaining unknown raw events.
