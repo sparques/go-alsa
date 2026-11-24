@@ -3,6 +3,7 @@
 package pcm
 
 import (
+	"context"
 	"errors"
 	"os"
 	"syscall"
@@ -132,6 +133,20 @@ func TestConfigureHardware(t *testing.T) {
 	}
 	if err := handle.Prepare(); err != nil {
 		t.Fatalf("Prepare: %v", err)
+	}
+	available, err := handle.Available()
+	if err != nil {
+		t.Fatalf("Available: %v", err)
+	}
+	if available > uint64(setup.BufferFrames) {
+		t.Errorf("available frames = %d; buffer has %d", available, setup.BufferFrames)
+	}
+	if stream == alsa.Playback {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		if err := handle.Wait(ctx); err != nil {
+			t.Fatalf("Wait: %v", err)
+		}
 	}
 	if err := handle.Drop(); err != nil {
 		t.Fatalf("Drop: %v", err)

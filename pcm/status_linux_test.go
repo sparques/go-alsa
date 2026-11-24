@@ -3,10 +3,32 @@
 package pcm
 
 import (
+	"errors"
+	"syscall"
 	"testing"
 
 	"github.com/sparques/go-alsa/internal/uapi"
 )
+
+func TestPollStateErrors(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		state State
+		want  error
+	}{
+		{StateXRUN, ErrXRUN},
+		{StateSuspended, syscall.ESTRPIPE},
+		{StateDisconnected, ErrDisconnected},
+	}
+	for _, test := range tests {
+		if err := pollStateError(test.state, 8); !errors.Is(err, test.want) {
+			t.Errorf("pollStateError(%s) = %v; want %v", test.state, err, test.want)
+		}
+	}
+	if err := pollStateError(StateRunning, 8); err == nil {
+		t.Fatal("running stream POLLERR was ignored")
+	}
+}
 
 func TestStatusFromUAPI(t *testing.T) {
 	t.Parallel()

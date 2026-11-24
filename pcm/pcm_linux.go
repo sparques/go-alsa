@@ -232,6 +232,68 @@ func (h *Handle) delay() (int64, error) {
 	return frames, nil
 }
 
+func (h *Handle) available() (uint64, error) {
+	status, err := h.status()
+	if err != nil {
+		return 0, err
+	}
+	return status.AvailableFrames, nil
+}
+
+func (h *Handle) wait(ctx context.Context) error {
+	h.mu.Lock()
+	if h.hardware == nil {
+		h.mu.Unlock()
+		return fmt.Errorf("%w: configure hardware before waiting", ErrState)
+	}
+	events := int16(unix.POLLOUT)
+	if h.stream == streamCapture {
+		events = unix.POLLIN
+	}
+	h.mu.Unlock()
+
+	h.ioMu.Lock()
+	defer h.ioMu.Unlock()
+	revents, err := h.core.fd.Wait(ctx, events)
+	if err != nil {
+		return err
+	}
+	if err := h.pollError(revents); err != nil {
+		return err
+	}
+	if revents&events == 0 {
+		return fmt.Errorf("alsa pcm: poll returned unexpected events %#x", revents)
+	}
+	return nil
+}
+
+func (h *Handle) pollError(revents int16) error {
+	if revents&(unix.POLLHUP|unix.POLLNVAL) != 0 {
+		return ErrDisconnected
+	}
+	if revents&unix.POLLERR == 0 {
+		return nil
+	}
+	status, err := h.status()
+	if err != nil {
+		return fmt.Errorf("alsa pcm: poll error: %w", err)
+	}
+	return pollStateError(status.State, revents)
+}
+
+func pollStateError(state State, revents int16) error {
+	switch state {
+	case StateXRUN:
+		return ErrXRUN
+	case StateSuspended:
+		return fmt.Errorf("alsa pcm: suspended: %w", syscall.ESTRPIPE)
+	case StateDisconnected:
+		return ErrDisconnected
+	default:
+		return fmt.Errorf("alsa pcm: poll reported stream error %#x in state %s", revents, state)
+	}
+}
+
 func statusFromUAPI(raw uapi.PCMStatus) Status {
 	return Status{
 		State:                  State(raw.State),
@@ -447,8 +509,8 @@ func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength 
 		if err != nil {
 			return 0, err
 		}
-		if revents&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
-			return 0, fmt.Errorf("alsa pcm: poll reported stream error %#x", revents)
+		if err := h.pollError(revents); err != nil {
+			return 0, err
 		}
 	}
 }
@@ -544,8 +606,8 @@ func (h *Handle) transferNonInterleavedBytes(ctx context.Context, channels [][]b
 		if err != nil {
 			return 0, err
 		}
-		if revents&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
-			return 0, fmt.Errorf("alsa pcm: poll reported stream error %#x", revents)
+		if err := h.pollError(revents); err != nil {
+			return 0, err
 		}
 	}
 }

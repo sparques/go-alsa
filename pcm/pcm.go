@@ -362,6 +362,16 @@ func (h *Handle) Status() (Status, error) { return h.status() }
 // Delay returns frames queued for playback or frames captured but not yet read.
 func (h *Handle) Delay() (int64, error) { return h.delay() }
 
+// Available returns the number of frames that can be transferred without
+// blocking. For playback this is writable space; for capture it is readable
+// data.
+func (h *Handle) Available() (uint64, error) { return h.available() }
+
+// Wait blocks until a transfer can make progress, the stream enters an error
+// state, the context is canceled, or the handle is closed. It uses POLLOUT for
+// playback and POLLIN for capture.
+func (h *Handle) Wait(ctx context.Context) error { return h.wait(ctx) }
+
 // Reset resets application and hardware ring pointers without discarding the
 // negotiated parameters.
 func (h *Handle) Reset() error { return h.reset() }

@@ -39,6 +39,8 @@ func (*Handle) drain(context.Context) error    { return alsa.ErrUnsupportedPlatf
 func (*Handle) freeHardware() error            { return alsa.ErrUnsupportedPlatform }
 func (*Handle) status() (Status, error)        { return Status{}, alsa.ErrUnsupportedPlatform }
 func (*Handle) delay() (int64, error)          { return 0, alsa.ErrUnsupportedPlatform }
+func (*Handle) available() (uint64, error)     { return 0, alsa.ErrUnsupportedPlatform }
+func (*Handle) wait(context.Context) error     { return alsa.ErrUnsupportedPlatform }
 func (*Handle) reset() error                   { return alsa.ErrUnsupportedPlatform }
 func (*Handle) pause(bool) error               { return alsa.ErrUnsupportedPlatform }
 func (*Handle) resume() error                  { return alsa.ErrUnsupportedPlatform }
