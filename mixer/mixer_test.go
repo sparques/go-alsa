@@ -46,6 +46,25 @@ func TestClassifyEvent(t *testing.T) {
 	}
 }
 
+func TestEnumeratedElementMetadata(t *testing.T) {
+	element := &EnumeratedElement{
+		items: []string{"Mic", "Line"},
+		item:  binding{info: control.ElementInfo{Access: control.AccessRead | control.AccessWrite}},
+	}
+	items := element.Items()
+	items[0] = "changed"
+	if got := element.Items()[0]; got != "Mic" {
+		t.Fatalf("Items exposed mutable storage: %q", got)
+	}
+	if !element.Writable() {
+		t.Fatal("Writable() = false for active writable element")
+	}
+	element.item.info.Access |= control.AccessInactive
+	if element.Writable() {
+		t.Fatal("Writable() = true for inactive element")
+	}
+}
+
 func TestNormalizeRaw(t *testing.T) {
 	integer := control.IntegerRange{Minimum: -10, Maximum: 30, Step: 4}
 	for _, test := range []struct {

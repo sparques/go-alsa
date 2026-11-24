@@ -78,6 +78,24 @@ func TestMixerHardware(t *testing.T) {
 			}
 		}
 	}
+
+	enumerations, err := handle.EnumeratedElements()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, element := range enumerations {
+		values, err := element.Values()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("enum %q index=%d values=%v items=%q writable=%v",
+			element.Name, element.Index, values, element.Items(), element.Writable())
+		if element.Writable() {
+			if err := element.SetValues(values); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 }
 
 func TestMixerHardwareEvent(t *testing.T) {

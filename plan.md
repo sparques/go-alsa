@@ -73,8 +73,10 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add bounded, step-aware normalized raw-volume APIs.
   - [x] Forward cancellation-aware control events with simple-element
     direction and kind classification while retaining unknown raw events.
-  - [ ] Add channel identities, joined/exclusive semantics, enum elements,
-    caching and broader hardware fixtures.
+  - [x] Expose vendor-named enumerated mixer controls, item names, per-channel
+    selections and validated writes without guessing their direction.
+  - [ ] Add channel identities, joined/exclusive semantics, caching and broader
+    hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**

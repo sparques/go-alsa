@@ -94,6 +94,80 @@ type binding struct {
 	info control.ElementInfo
 }
 
+// EnumeratedElement is a raw ALSA MIXER enumeration. Its name is deliberately
+// preserved because vendor controls do not follow reliable direction suffixes.
+type EnumeratedElement struct {
+	Name  string
+	Index uint32
+	h     *Handle
+	item  binding
+	items []string
+}
+
+// Items returns the kernel-reported item names in selection-index order.
+func (e *EnumeratedElement) Items() []string { return append([]string(nil), e.items...) }
+
+// Writable reports whether the enumeration is active and writable.
+func (e *EnumeratedElement) Writable() bool {
+	return e.item.info.Access.Writable() && !e.item.info.Access.Inactive()
+}
+
+// Values returns one selected item index per kernel-reported channel.
+func (e *EnumeratedElement) Values() ([]uint32, error) {
+	value, err := e.h.control.Read(e.item.id)
+	if err != nil {
+		return nil, err
+	}
+	return append([]uint32(nil), value.Enumerated...), nil
+}
+
+// SetValues selects one item index per kernel-reported channel. The raw
+// control layer validates channel count, item bounds, activity and access.
+func (e *EnumeratedElement) SetValues(values []uint32) error {
+	return e.h.control.Write(control.ElementValue{
+		ID: e.item.id, Type: control.TypeEnumerated, Enumerated: append([]uint32(nil), values...),
+	})
+}
+
+// EnumeratedElements returns every enumerated MIXER control without inferring
+// playback/capture direction from vendor-specific names.
+func (h *Handle) EnumeratedElements() ([]*EnumeratedElement, error) {
+	ids, err := h.control.Elements()
+	if err != nil {
+		return nil, err
+	}
+	var result []*EnumeratedElement
+	for _, id := range ids {
+		if id.Interface != control.InterfaceMixer {
+			continue
+		}
+		info, err := h.control.Info(id)
+		if err != nil {
+			return nil, err
+		}
+		if info.Type != control.TypeEnumerated {
+			continue
+		}
+		item := &EnumeratedElement{Name: id.Name, Index: id.Index, h: h, item: binding{id: id, info: info}}
+		item.items = make([]string, info.Enumerated.Items)
+		for index := range item.items {
+			itemInfo, err := h.control.EnumeratedItem(id, uint32(index))
+			if err != nil {
+				return nil, err
+			}
+			item.items[index] = itemInfo.Enumerated.ItemName
+		}
+		result = append(result, item)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Name != result[j].Name {
+			return result[i].Name < result[j].Name
+		}
+		return result[i].Index < result[j].Index
+	})
+	return result, nil
+}
+
 // Element groups conventional simple controls sharing a base name and index.
 type Element struct {
 	Name  string
