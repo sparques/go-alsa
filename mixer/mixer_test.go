@@ -16,6 +16,8 @@ func TestSplitSimpleName(t *testing.T) {
 	}{
 		{"Speaker Playback Volume", "Speaker", "playback_volume", true},
 		{"Mic Capture Switch", "Mic", "capture_switch", true},
+		{"Capture Volume", "Capture", "capture_volume", true},
+		{"Front Mic Boost Volume", "Front Mic Boost", "common_volume", true},
 		{" Playback Volume", "", "", false},
 		{"Auto Gain Control", "", "", false},
 	}
@@ -25,6 +27,27 @@ func TestSplitSimpleName(t *testing.T) {
 			t.Errorf("splitSimpleName(%q) = %q, %q, %v; want %q, %q, %v",
 				test.name, base, kind, ok, test.base, test.kind, test.ok)
 		}
+	}
+}
+
+func TestChannelsAndJoinedCapabilities(t *testing.T) {
+	element := &Element{
+		playbackSwitch: &binding{info: control.ElementInfo{Count: 2}},
+		playbackVolume: &binding{info: control.ElementInfo{Count: 1}},
+		captureVolume:  &binding{info: control.ElementInfo{Count: 1}},
+	}
+	playback := element.PlaybackChannels()
+	if len(playback) != 2 || playback[0] != ChannelFrontLeft || playback[1] != ChannelFrontRight {
+		t.Fatalf("PlaybackChannels() = %v", playback)
+	}
+	if element.PlaybackSwitchJoined() || !element.PlaybackVolumeJoined() || !element.CaptureVolumeJoined() {
+		t.Fatalf("joined capabilities: ps=%v pv=%v cv=%v", element.PlaybackSwitchJoined(), element.PlaybackVolumeJoined(), element.CaptureVolumeJoined())
+	}
+	if got := element.CaptureChannels(); len(got) != 1 || got[0] != ChannelMono {
+		t.Fatalf("CaptureChannels() = %v", got)
+	}
+	if ChannelRearCenter.String() != "Rear Center" || Channel(20).String() != "Channel 20" {
+		t.Fatal("unexpected channel names")
 	}
 }
 

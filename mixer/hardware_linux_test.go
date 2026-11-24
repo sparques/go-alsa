@@ -30,9 +30,10 @@ func TestMixerHardware(t *testing.T) {
 		t.Fatal("no conventional simple mixer elements found")
 	}
 	for _, element := range elements {
-		t.Logf("element %q index=%d playback=(switch=%v volume=%v) capture=(switch=%v volume=%v)",
-			element.Name, element.Index, element.HasPlaybackSwitch(), element.HasPlaybackVolume(),
-			element.HasCaptureSwitch(), element.HasCaptureVolume())
+		t.Logf("element %q index=%d playback=(channels=%v switch=%v/%v volume=%v/%v) capture=(channels=%v switch=%v/%v volume=%v/%v) common=(switch=%v volume=%v)",
+			element.Name, element.Index, element.PlaybackChannels(), element.HasPlaybackSwitch(), element.PlaybackSwitchJoined(), element.HasPlaybackVolume(), element.PlaybackVolumeJoined(),
+			element.CaptureChannels(), element.HasCaptureSwitch(), element.CaptureSwitchJoined(), element.HasCaptureVolume(), element.CaptureVolumeJoined(),
+			element.HasCommonSwitch(), element.HasCommonVolume())
 		if element.HasPlaybackSwitch() {
 			values, err := element.PlaybackSwitch()
 			if err != nil {

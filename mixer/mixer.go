@@ -64,6 +64,36 @@ const (
 	DirectionCapture
 )
 
+// Channel follows alsa-lib's simple-mixer channel identifier order. A
+// one-channel direction is reported as ChannelMono; multi-channel directions
+// use the numbered spatial identifiers in order.
+type Channel int
+
+const ChannelMono Channel = -1
+
+const (
+	ChannelFrontLeft Channel = iota
+	ChannelFrontRight
+	ChannelRearLeft
+	ChannelRearRight
+	ChannelFrontCenter
+	ChannelWoofer
+	ChannelSideLeft
+	ChannelSideRight
+	ChannelRearCenter
+)
+
+func (c Channel) String() string {
+	if c == ChannelMono {
+		return "Mono"
+	}
+	names := [...]string{"Front Left", "Front Right", "Rear Left", "Rear Right", "Front Center", "Woofer", "Side Left", "Side Right", "Rear Center"}
+	if c >= 0 && int(c) < len(names) {
+		return names[c]
+	}
+	return fmt.Sprintf("Channel %d", c)
+}
+
 // Event reports a raw control event and, when recognized, its simple-element
 // identity. Unknown controls retain Raw and have Recognized set to false.
 type Event struct {
@@ -111,6 +141,10 @@ func classifyEvent(raw control.Event) Event {
 		event.Direction, event.Kind = DirectionCapture, EventSwitch
 	case "capture_volume":
 		event.Direction, event.Kind = DirectionCapture, EventVolume
+	case "common_switch":
+		event.Kind = EventSwitch
+	case "common_volume":
+		event.Kind = EventVolume
 	}
 	return event
 }
@@ -221,12 +255,62 @@ type Element struct {
 	playbackVolume *binding
 	captureSwitch  *binding
 	captureVolume  *binding
+	commonSwitch   bool
+	commonVolume   bool
 }
 
 func (e *Element) HasPlaybackSwitch() bool { return e.playbackSwitch != nil }
 func (e *Element) HasPlaybackVolume() bool { return e.playbackVolume != nil }
 func (e *Element) HasCaptureSwitch() bool  { return e.captureSwitch != nil }
 func (e *Element) HasCaptureVolume() bool  { return e.captureVolume != nil }
+func (e *Element) HasCommonSwitch() bool   { return e.commonSwitch }
+func (e *Element) HasCommonVolume() bool   { return e.commonVolume }
+
+// PlaybackChannels returns alsa-lib-compatible channel identities inferred
+// from the largest playback control value count.
+func (e *Element) PlaybackChannels() []Channel {
+	return channelsForCount(maxBindingCount(e.playbackSwitch, e.playbackVolume))
+}
+
+// CaptureChannels returns alsa-lib-compatible channel identities inferred
+// from the largest capture control value count.
+func (e *Element) CaptureChannels() []Channel {
+	return channelsForCount(maxBindingCount(e.captureSwitch, e.captureVolume))
+}
+
+func (e *Element) PlaybackSwitchJoined() bool { return joinedBinding(e.playbackSwitch) }
+func (e *Element) PlaybackVolumeJoined() bool { return joinedBinding(e.playbackVolume) }
+func (e *Element) CaptureSwitchJoined() bool  { return joinedBinding(e.captureSwitch) }
+func (e *Element) CaptureVolumeJoined() bool  { return joinedBinding(e.captureVolume) }
+
+func joinedBinding(item *binding) bool { return item != nil && item.info.Count <= 1 }
+
+func maxBindingCount(items ...*binding) uint32 {
+	var count uint32
+	for _, item := range items {
+		if item != nil && item.info.Count > count {
+			count = item.info.Count
+		}
+	}
+	return count
+}
+
+func channelsForCount(count uint32) []Channel {
+	if count == 0 {
+		return nil
+	}
+	if count == 1 {
+		return []Channel{ChannelMono}
+	}
+	if count > 32 {
+		count = 32
+	}
+	result := make([]Channel, count)
+	for index := range result {
+		result[index] = Channel(index)
+	}
+	return result
+}
 
 // Elements discovers standard simple-element suffixes on MIXER controls.
 func (h *Handle) Elements() ([]*Element, error) {
@@ -249,12 +333,20 @@ func (h *Handle) Elements() ([]*Element, error) {
 			continue
 		}
 		base, kind, ok := splitSimpleName(id.Name)
-		if !ok {
-			continue
-		}
 		info, err := h.control.Info(id)
 		if err != nil {
 			return nil, err
+		}
+		if !ok {
+			base = id.Name
+			switch info.Type {
+			case control.TypeBoolean:
+				kind = "single_switch"
+			case control.TypeInteger, control.TypeInteger64:
+				kind = "single_volume"
+			default:
+				continue
+			}
 		}
 		itemKey := key{name: base, index: id.Index}
 		element := byKey[itemKey]
@@ -280,6 +372,24 @@ func (h *Handle) Elements() ([]*Element, error) {
 			if info.Type == control.TypeInteger || info.Type == control.TypeInteger64 {
 				element.captureVolume = value
 			}
+		case "common_switch":
+			if info.Type == control.TypeBoolean {
+				element.playbackSwitch = value
+				element.captureSwitch = value
+				element.commonSwitch = true
+			}
+		case "common_volume":
+			if info.Type == control.TypeInteger || info.Type == control.TypeInteger64 {
+				element.playbackVolume = value
+				element.captureVolume = value
+				element.commonVolume = true
+			}
+		case "single_switch":
+			element.playbackSwitch = value
+		case "single_volume":
+			element.playbackVolume = value
+			element.captureVolume = value
+			element.commonVolume = true
 		}
 	}
 	result := make([]*Element, 0, len(byKey))
@@ -321,14 +431,22 @@ func cloneBinding(item *binding) *binding {
 }
 
 func splitSimpleName(name string) (string, string, bool) {
+	if name == "Capture Switch" {
+		return "Capture", "capture_switch", true
+	}
+	if name == "Capture Volume" {
+		return "Capture", "capture_volume", true
+	}
 	suffixes := []struct{ suffix, kind string }{
 		{" Playback Switch", "playback_switch"},
 		{" Playback Volume", "playback_volume"},
 		{" Capture Switch", "capture_switch"},
 		{" Capture Volume", "capture_volume"},
+		{" Switch", "common_switch"},
+		{" Volume", "common_volume"},
 	}
 	for _, suffix := range suffixes {
-		if base, ok := strings.CutSuffix(name, suffix.suffix); ok && base != "" {
+		if base, ok := strings.CutSuffix(name, suffix.suffix); ok && base != "" && strings.TrimSpace(base) == base {
 			return base, suffix.kind, true
 		}
 	}

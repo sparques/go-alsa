@@ -78,8 +78,9 @@ item does not imply that its phase exit criteria have been met.
     selections and validated writes without guessing their direction.
   - [x] Cache capability discovery with defensive copies, explicit refresh,
     uncached values, and INFO/ADD/REMOVE/TLV event invalidation.
-  - [ ] Add channel identities, joined/exclusive semantics, and broader hardware
-    fixtures.
+  - [x] Match simple-none playback/capture/global suffix and unsuffixed-control
+    grouping; expose alsa-lib channel identities plus common/joined capabilities.
+  - [ ] Add capture-source exclusivity and broader hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
