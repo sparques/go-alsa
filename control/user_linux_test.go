@@ -3,9 +3,11 @@
 package control
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -42,6 +44,98 @@ func TestEncodeUserElementSpec(t *testing.T) {
 	}
 }
 
+func TestUserElementHardwareEventStress(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_USER_CONTROL")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_USER_CONTROL to a card number or ID")
+	}
+	subscriber, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = subscriber.Close() })
+	actor, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = actor.Close() })
+	if err := subscriber.Subscribe(true); err != nil {
+		t.Fatal(err)
+	}
+	defer subscriber.Subscribe(false)
+
+	prefix := fmt.Sprintf("ga-%d-%06d-", os.Getpid(), time.Now().UnixNano()%1_000_000)
+	created := make([]ElementID, 0, 64)
+	t.Cleanup(func() {
+		for _, id := range created {
+			if err := actor.RemoveUserElement(id); err != nil {
+				t.Errorf("cleanup %s: %v", id, err)
+			}
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	waitFor := func(name string, mask EventMask) {
+		t.Helper()
+		for {
+			event, err := subscriber.NextEvent(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if event.ID.Name != name {
+				continue
+			}
+			if mask == EventRemove {
+				if event.Mask == EventRemove {
+					return
+				}
+			} else if event.Mask&mask != 0 {
+				return
+			}
+		}
+	}
+
+	for index := 0; index < cap(created); index++ {
+		name := fmt.Sprintf("%s%02d", prefix, index)
+		id, err := actor.AddUserElement(UserElementSpec{
+			ID: ElementID{Interface: InterfaceMixer, Name: name}, Type: TypeBoolean, Count: 1,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		created = append(created, id)
+		waitFor(name, EventAdd)
+		if err := actor.Write(ElementValue{ID: id, Type: TypeBoolean, Booleans: []bool{true}}); err != nil {
+			t.Fatal(err)
+		}
+		waitFor(name, EventValue)
+	}
+
+	ids, err := actor.Elements()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := make(map[string]bool, len(created))
+	for _, id := range ids {
+		if strings.HasPrefix(id.Name, prefix) {
+			found[id.Name] = true
+		}
+	}
+	if len(found) != len(created) {
+		t.Fatalf("enumeration found %d of %d temporary controls", len(found), len(created))
+	}
+
+	for len(created) > 0 {
+		last := len(created) - 1
+		id := created[last]
+		if err := actor.RemoveUserElement(id); err != nil {
+			t.Fatal(err)
+		}
+		created = created[:last]
+		waitFor(id.Name, EventRemove)
+	}
+}
+
 func TestUserElementHardwareLifecycle(t *testing.T) {
 	selector := os.Getenv("GO_ALSA_TEST_USER_CONTROL")
 	if selector == "" {
@@ -51,7 +145,7 @@ func TestUserElementHardwareLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer handle.Close()
+	t.Cleanup(func() { _ = handle.Close() })
 
 	id := ElementID{
 		Interface: InterfaceMixer,

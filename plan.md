@@ -68,7 +68,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Implement typed card power-state queries and validated state requests.
   - [x] Implement validated user-element add/replace/remove for boolean,
     integer, integer64, enumerated, byte, and IEC958 controls.
-  - [ ] Implement remaining raw control operations and event stress tests.
+  - [x] Stress ordered ADD/VALUE/REMOVE events and enumeration with 64 temporary
+    userspace controls under bounded cancellation and guaranteed cleanup.
+  - [ ] Implement remaining raw control operations.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name
     and index; provide typed reads and validated writes.
