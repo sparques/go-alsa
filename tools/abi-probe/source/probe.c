@@ -33,6 +33,13 @@ int main(void) {
 	VALUE("control_tlv_read_ioctl", SNDRV_CTL_IOCTL_TLV_READ);
 	VALUE("control_tlv_write_ioctl", SNDRV_CTL_IOCTL_TLV_WRITE);
 	VALUE("control_tlv_command_ioctl", SNDRV_CTL_IOCTL_TLV_COMMAND);
+	VALUE("control_power_ioctl", SNDRV_CTL_IOCTL_POWER);
+	VALUE("control_power_state_ioctl", SNDRV_CTL_IOCTL_POWER_STATE);
+	VALUE("control_power_d0", SNDRV_CTL_POWER_D0);
+	VALUE("control_power_d1", SNDRV_CTL_POWER_D1);
+	VALUE("control_power_d2", SNDRV_CTL_POWER_D2);
+	VALUE("control_power_d3hot", SNDRV_CTL_POWER_D3hot);
+	VALUE("control_power_d3cold", SNDRV_CTL_POWER_D3cold);
 	VALUE("pcm_protocol", SNDRV_PCM_VERSION);
 	VALUE("pcm_pversion_ioctl", SNDRV_PCM_IOCTL_PVERSION);
 	VALUE("pcm_info_ioctl", SNDRV_PCM_IOCTL_INFO);

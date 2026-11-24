@@ -87,6 +87,8 @@ const (
 	ControlIoctlTLVRead         = uintptr(0xc008551a)
 	ControlIoctlTLVWrite        = uintptr(0xc008551b)
 	ControlIoctlTLVCommand      = uintptr(0xc008551c)
+	ControlIoctlPower           = uintptr(0xc00455d0)
+	ControlIoctlPowerState      = uintptr(0x800455d1)
 )
 
 // Compile-time size checks fail in either direction if the structure changes.

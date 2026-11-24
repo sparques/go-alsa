@@ -29,6 +29,16 @@ func TestResolveNumericCard(t *testing.T) {
 	}
 }
 
+func TestPowerStateValidation(t *testing.T) {
+	if PowerD0.String() != "D0" || PowerD3Cold.String() != "D3cold" || PowerState(7).String() != "PowerState(0x7)" {
+		t.Fatal("unexpected power-state string")
+	}
+	var handle Handle
+	if err := handle.SetPowerState(PowerState(7)); err == nil {
+		t.Fatal("invalid power state unexpectedly accepted")
+	}
+}
+
 func TestControlHardwareEvent(t *testing.T) {
 	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
 	if selector == "" {
@@ -174,4 +184,21 @@ func TestControlHardware(t *testing.T) {
 		}
 	}
 	t.Logf("card %s exposes %s controls, %d readable TLVs", selector, strconv.Itoa(len(ids)), tlvCount)
+}
+
+func TestControlHardwarePowerState(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_CONTROL to a card number or ID")
+	}
+	handle, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	state, err := handle.PowerState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("power state: %s", state)
 }

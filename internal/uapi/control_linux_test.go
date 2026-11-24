@@ -97,3 +97,13 @@ func TestControlEventLayoutAndIoctl(t *testing.T) {
 		t.Fatalf("SUBSCRIBE_EVENTS ioctl = %#x; want %#x", got, ControlIoctlSubscribeEvents)
 	}
 }
+
+func TestControlPowerIoctls(t *testing.T) {
+	t.Parallel()
+	if got := iowr(controlIoctlType, 0xd0, unsafe.Sizeof(int32(0))); got != ControlIoctlPower {
+		t.Fatalf("POWER ioctl = %#x; want %#x", got, ControlIoctlPower)
+	}
+	if got := ior(controlIoctlType, 0xd1, unsafe.Sizeof(int32(0))); got != ControlIoctlPowerState {
+		t.Fatalf("POWER_STATE ioctl = %#x; want %#x", got, ControlIoctlPowerState)
+	}
+}

@@ -152,6 +152,40 @@ type Event struct {
 	ID   ElementID
 }
 
+// PowerState is an ALSA card power-management state.
+type PowerState int32
+
+const (
+	PowerD0     PowerState = 0x0000
+	PowerD1     PowerState = 0x0100
+	PowerD2     PowerState = 0x0200
+	PowerD3Hot  PowerState = 0x0300
+	PowerD3Cold PowerState = 0x0301
+)
+
+func (p PowerState) String() string {
+	switch p {
+	case PowerD0:
+		return "D0"
+	case PowerD1:
+		return "D1"
+	case PowerD2:
+		return "D2"
+	case PowerD3Hot:
+		return "D3hot"
+	case PowerD3Cold:
+		return "D3cold"
+	default:
+		return fmt.Sprintf("PowerState(%#x)", int32(p))
+	}
+}
+
+// PowerState returns the card's current kernel power-management state.
+func (h *Handle) PowerState() (PowerState, error) { return h.powerState() }
+
+// SetPowerState requests a supported card power-management state.
+func (h *Handle) SetPowerState(state PowerState) error { return h.setPowerState(state) }
+
 // Subscribe enables or disables delivery of control events to this handle.
 func (h *Handle) Subscribe(enabled bool) error { return h.subscribe(enabled) }
 

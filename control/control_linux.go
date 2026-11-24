@@ -298,6 +298,27 @@ func (h *Handle) Unlock(id ElementID) error {
 	return nil
 }
 
+func (h *Handle) powerState() (PowerState, error) {
+	var state int32
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlPowerState, unsafe.Pointer(&state)); err != nil {
+		return 0, fmt.Errorf("alsa control: read power state: %w", err)
+	}
+	return PowerState(state), nil
+}
+
+func (h *Handle) setPowerState(state PowerState) error {
+	switch state {
+	case PowerD0, PowerD1, PowerD2, PowerD3Hot, PowerD3Cold:
+	default:
+		return fmt.Errorf("alsa control: invalid power state %s", state)
+	}
+	value := int32(state)
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlPower, unsafe.Pointer(&value)); err != nil {
+		return fmt.Errorf("alsa control: set power state %s: %w", state, err)
+	}
+	return nil
+}
+
 // ReadTLV reads up to maximumBytes of raw TLV words. The returned slice begins
 // with the ALSA TLV type and payload-length words.
 func (h *Handle) ReadTLV(id ElementID, maximumBytes int) ([]uint32, error) {

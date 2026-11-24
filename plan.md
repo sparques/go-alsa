@@ -65,6 +65,7 @@ item does not imply that its phase exit criteria have been met.
   - [x] Decode standard dB scale/linear/min-max/range, container, and channel-map
     TLVs with nesting and bounds checks.
   - [x] Implement cancellation-aware ordered control event subscriptions.
+  - [x] Implement typed card power-state queries and validated state requests.
   - [ ] Implement remaining raw control operations and event stress tests.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name
