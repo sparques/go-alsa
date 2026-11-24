@@ -37,9 +37,9 @@ item does not imply that its phase exit criteria have been met.
     a control device disappearing between discovery and open.
   - [x] Parse and resolve numeric and stable-ID `hw:` names, including device,
     subdevice, and direction selectors.
-  - [ ] Add typed errors for permissions, absent/busy devices, malformed names,
-    unsupported directions, and disconnection. (Malformed names, missing
-    devices, unavailable directions, and subdevices are implemented.)
+  - [x] Add typed errors for permissions, absent/busy devices, malformed names,
+    unsupported directions, and disconnection while preserving underlying
+    syscall errors for `errors.Is`.
   - [ ] Compare enumeration with `aplay`, `arecord`, and libasound on the full
     virtual/real hardware matrix. (The current amd64 host agrees with `aplay -l`
     and `arecord -l` for its HDA playback/capture and USB capture devices.)

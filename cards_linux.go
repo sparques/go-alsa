@@ -36,7 +36,11 @@ func Cards() ([]Card, error) {
 				// Hot-unplug between Glob and Open is not an enumeration failure.
 				continue
 			}
-			return nil, fmt.Errorf("alsa: inspect card %d (%s): %w", number, path, err)
+			return nil, &DeviceError{
+				Op:     "inspect",
+				Device: fmt.Sprintf("card %d (%s)", number, path),
+				Err:    err,
+			}
 		}
 		cards = append(cards, Card{
 			Number:     int(info.Card),
@@ -73,7 +77,11 @@ func PCMs() ([]PCM, error) {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return nil, fmt.Errorf("alsa: enumerate PCMs for card %d (%s): %w", number, path, err)
+			return nil, &DeviceError{
+				Op:     "enumerate PCMs for",
+				Device: fmt.Sprintf("card %d (%s)", number, path),
+				Err:    err,
+			}
 		}
 		for _, item := range items {
 			stream := Playback

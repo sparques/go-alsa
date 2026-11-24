@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
+
+	alsa "github.com/sparques/go-alsa"
 )
 
 var (
@@ -18,7 +20,7 @@ var (
 	// recover before transferring more frames.
 	ErrXRUN = errors.New("alsa pcm: xrun")
 	// ErrDisconnected reports hardware removal or a disconnected PCM stream.
-	ErrDisconnected = errors.New("alsa pcm: disconnected")
+	ErrDisconnected = alsa.ErrDisconnected
 )
 
 // Info is immutable metadata returned by the kernel for an opened PCM stream.
