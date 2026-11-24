@@ -152,6 +152,13 @@ func (h *Handle) ReplaceUserElement(spec UserElementSpec) (ElementID, error) {
 // RemoveUserElement removes an existing userspace-owned control.
 func (h *Handle) RemoveUserElement(id ElementID) error { return h.removeUserElement(id) }
 
+// CardComponents returns the full kernel card-component string when supported.
+// complete is false when an older kernel only provides the legacy fixed field.
+// maximumBytes bounds allocation and includes the terminating NUL byte.
+func (h *Handle) CardComponents(maximumBytes int) (components string, complete bool, err error) {
+	return h.cardComponents(maximumBytes)
+}
+
 // Handle owns an ALSA card control descriptor.
 type Handle struct {
 	core    handleCore

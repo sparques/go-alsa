@@ -13,6 +13,10 @@ int main(void) {
 	VALUE("control_components_offset", offsetof(struct snd_ctl_card_info, components));
 	VALUE("control_pversion_ioctl", SNDRV_CTL_IOCTL_PVERSION);
 	VALUE("control_card_info_ioctl", SNDRV_CTL_IOCTL_CARD_INFO);
+	VALUE("control_card_bytes_size", sizeof(struct snd_ctl_card_bytes));
+	VALUE("control_card_bytes_data_offset", offsetof(struct snd_ctl_card_bytes, data));
+	VALUE("control_card_bytes_ioctl", SNDRV_CTL_IOCTL_CARD_BYTES);
+	VALUE("control_card_bytes_components", SND_CTL_CARD_BTYPE_COMPONENTS);
 	VALUE("control_element_id_size", sizeof(struct snd_ctl_elem_id));
 	VALUE("control_element_list_size", sizeof(struct snd_ctl_elem_list));
 	VALUE("control_list_ids_offset", offsetof(struct snd_ctl_elem_list, pids));

@@ -39,3 +39,6 @@ func (*Handle) addOrReplaceUserElement(UserElementSpec, bool) (ElementID, error)
 	return ElementID{}, alsa.ErrUnsupportedPlatform
 }
 func (*Handle) removeUserElement(ElementID) error { return alsa.ErrUnsupportedPlatform }
+func (*Handle) cardComponents(int) (string, bool, error) {
+	return "", false, alsa.ErrUnsupportedPlatform
+}

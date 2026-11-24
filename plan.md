@@ -70,6 +70,8 @@ item does not imply that its phase exit criteria have been met.
     integer, integer64, enumerated, byte, and IEC958 controls.
   - [x] Stress ordered ADD/VALUE/REMOVE events and enumeration with 64 temporary
     userspace controls under bounded cancellation and guaranteed cleanup.
+  - [x] Read full card component strings with bounded CARD_BYTES allocation,
+    change retries, and an explicit legacy-kernel completeness fallback.
   - [ ] Implement remaining raw control operations.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name

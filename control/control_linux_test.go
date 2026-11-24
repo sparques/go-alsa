@@ -39,6 +39,15 @@ func TestPowerStateValidation(t *testing.T) {
 	}
 }
 
+func TestCardComponentsLimitValidation(t *testing.T) {
+	var handle Handle
+	for _, limit := range []int{0, -1, maximumTLVBytes + 1} {
+		if _, _, err := handle.CardComponents(limit); err == nil {
+			t.Errorf("CardComponents(%d) unexpectedly succeeded", limit)
+		}
+	}
+}
+
 func TestControlHardwareEvent(t *testing.T) {
 	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
 	if selector == "" {
@@ -201,4 +210,21 @@ func TestControlHardwarePowerState(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("power state: %s", state)
+}
+
+func TestControlHardwareCardComponents(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_CONTROL to a card number or ID")
+	}
+	handle, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	components, complete, err := handle.CardComponents(1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("components=%q complete=%v", components, complete)
 }

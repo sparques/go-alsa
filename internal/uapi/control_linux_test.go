@@ -28,6 +28,19 @@ func TestControlCardInfoLayout(t *testing.T) {
 	}
 }
 
+func TestControlCardBytesLayout(t *testing.T) {
+	t.Parallel()
+	if got := unsafe.Sizeof(ControlCardBytes{}); got != 24 {
+		t.Fatalf("sizeof(ControlCardBytes) = %d; want 24", got)
+	}
+	if got := unsafe.Offsetof(ControlCardBytes{}.Data); got != 16 {
+		t.Fatalf("offsetof(ControlCardBytes.Data) = %d; want 16", got)
+	}
+	if got := iowr(controlIoctlType, 0x02, unsafe.Sizeof(ControlCardBytes{})); got != ControlIoctlCardBytes {
+		t.Fatalf("CARD_BYTES ioctl = %#x; want %#x", got, ControlIoctlCardBytes)
+	}
+}
+
 func TestControlElementLayoutsAndIoctls(t *testing.T) {
 	t.Parallel()
 	if got := unsafe.Sizeof(ControlElementID{}); got != 64 {

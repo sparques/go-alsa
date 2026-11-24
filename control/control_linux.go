@@ -364,6 +364,59 @@ func (h *Handle) removeUserElement(id ElementID) error {
 	return nil
 }
 
+func (h *Handle) cardComponents(maximumBytes int) (string, bool, error) {
+	if maximumBytes <= 0 || maximumBytes > maximumTLVBytes {
+		return "", false, fmt.Errorf("alsa control: component buffer limit %d is outside 1..%d", maximumBytes, maximumTLVBytes)
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		raw := uapi.ControlCardBytes{Type: 1}
+		if err := h.core.fd.Ioctl(uapi.ControlIoctlCardBytes, unsafe.Pointer(&raw)); err != nil {
+			if errors.Is(err, syscall.ENOTTY) {
+				return h.legacyCardComponents(maximumBytes)
+			}
+			return "", false, fmt.Errorf("alsa control: query component length: %w", err)
+		}
+		if raw.DataLength == 0 || raw.DataLength > uint32(maximumBytes) {
+			return "", false, fmt.Errorf("alsa control: component length %d exceeds limit %d", raw.DataLength, maximumBytes)
+		}
+		buffer := make([]byte, raw.DataLength)
+		raw.DataAllocated = uint32(len(buffer))
+		raw.Data = uint64(uintptr(unsafe.Pointer(unsafe.SliceData(buffer))))
+		if err := h.core.fd.Ioctl(uapi.ControlIoctlCardBytes, unsafe.Pointer(&raw)); err != nil {
+			runtime.KeepAlive(buffer)
+			if errors.Is(err, syscall.ENOMEM) {
+				continue
+			}
+			return "", false, fmt.Errorf("alsa control: read components: %w", err)
+		}
+		runtime.KeepAlive(buffer)
+		if raw.DataLength == 0 || raw.DataLength > uint32(len(buffer)) || buffer[raw.DataLength-1] != 0 {
+			return "", false, errors.New("alsa control: kernel returned malformed component string")
+		}
+		return string(buffer[:raw.DataLength-1]), true, nil
+	}
+	return "", false, errors.New("alsa control: component string kept changing")
+}
+
+func (h *Handle) legacyCardComponents(maximumBytes int) (string, bool, error) {
+	var raw uapi.ControlCardInfo
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlCardInfo, unsafe.Pointer(&raw)); err != nil {
+		return "", false, fmt.Errorf("alsa control: fallback card info: %w", err)
+	}
+	length := len(raw.Components)
+	for index, value := range raw.Components {
+		if value == 0 {
+			length = index
+			break
+		}
+	}
+	if length+1 > maximumBytes {
+		return "", false, fmt.Errorf("alsa control: legacy component length exceeds limit %d", maximumBytes)
+	}
+	complete := length < len(raw.Components)-1 && (length == 0 || raw.Components[length-1] != '>')
+	return string(raw.Components[:length]), complete, nil
+}
+
 func encodeUserElementSpec(spec UserElementSpec) (uapi.ControlElementInfo, []byte, error) {
 	if spec.ID.Interface < InterfaceCard || spec.ID.Interface > InterfaceSequencer {
 		return uapi.ControlElementInfo{}, nil, fmt.Errorf("alsa control: invalid user element interface %d", spec.ID.Interface)

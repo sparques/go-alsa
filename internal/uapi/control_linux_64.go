@@ -23,6 +23,15 @@ type ControlCardInfo struct {
 	Components [128]byte
 }
 
+// ControlCardBytes matches struct snd_ctl_card_bytes.
+type ControlCardBytes struct {
+	Type          uint32
+	DataAllocated uint32
+	DataLength    uint32
+	Reserved      uint32
+	Data          uint64
+}
+
 // ControlElementID matches struct snd_ctl_elem_id.
 type ControlElementID struct {
 	Number    uint32
@@ -77,6 +86,7 @@ type ControlEvent struct {
 const (
 	ControlIoctlProtocolVersion = uintptr(0x80045500)
 	ControlIoctlCardInfo        = uintptr(0x81785501)
+	ControlIoctlCardBytes       = uintptr(0xc0185502)
 	ControlIoctlElementList     = uintptr(0xc0505510)
 	ControlIoctlElementInfo     = uintptr(0xc1105511)
 	ControlIoctlElementRead     = uintptr(0xc4c85512)
@@ -98,6 +108,8 @@ const (
 var (
 	_ [376 - unsafe.Sizeof(ControlCardInfo{})]byte
 	_ [unsafe.Sizeof(ControlCardInfo{}) - 376]byte
+	_ [24 - unsafe.Sizeof(ControlCardBytes{})]byte
+	_ [unsafe.Sizeof(ControlCardBytes{}) - 24]byte
 	_ [64 - unsafe.Sizeof(ControlElementID{})]byte
 	_ [unsafe.Sizeof(ControlElementID{}) - 64]byte
 	_ [80 - unsafe.Sizeof(ControlElementList{})]byte
