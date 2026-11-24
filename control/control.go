@@ -127,6 +127,31 @@ type ElementValue struct {
 	IEC958     []byte
 }
 
+// UserElementSpec describes one userspace-owned control to add or replace.
+// EnumeratedItems is required only for TypeEnumerated; Integer is used only by
+// TypeInteger and TypeInteger64.
+type UserElementSpec struct {
+	ID              ElementID
+	Type            ElementType
+	Count           uint32
+	Integer         IntegerRange
+	EnumeratedItems []string
+}
+
+// AddUserElement creates a validated userspace-owned control and returns its
+// kernel-assigned full identity.
+func (h *Handle) AddUserElement(spec UserElementSpec) (ElementID, error) {
+	return h.addOrReplaceUserElement(spec, false)
+}
+
+// ReplaceUserElement changes an existing userspace-owned control definition.
+func (h *Handle) ReplaceUserElement(spec UserElementSpec) (ElementID, error) {
+	return h.addOrReplaceUserElement(spec, true)
+}
+
+// RemoveUserElement removes an existing userspace-owned control.
+func (h *Handle) RemoveUserElement(id ElementID) error { return h.removeUserElement(id) }
+
 // Handle owns an ALSA card control descriptor.
 type Handle struct {
 	core    handleCore

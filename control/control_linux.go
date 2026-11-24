@@ -22,6 +22,7 @@ import (
 
 const maximumElements = 1 << 20
 const maximumTLVBytes = 1 << 20
+const maximumEnumNamesBytes = 1 << 16
 
 type handleCore struct{ fd *sysio.FD }
 
@@ -317,6 +318,110 @@ func (h *Handle) setPowerState(state PowerState) error {
 		return fmt.Errorf("alsa control: set power state %s: %w", state, err)
 	}
 	return nil
+}
+
+func (h *Handle) addOrReplaceUserElement(spec UserElementSpec, replace bool) (ElementID, error) {
+	if !replace && spec.ID.Number != 0 {
+		return ElementID{}, errors.New("alsa control: new user element numid must be zero")
+	}
+	raw, names, err := encodeUserElementSpec(spec)
+	if err != nil {
+		return ElementID{}, err
+	}
+	request := uapi.ControlIoctlElementAdd
+	operation := "add"
+	if replace {
+		info, err := h.Info(spec.ID)
+		if err != nil {
+			return ElementID{}, err
+		}
+		if info.Access&AccessUser == 0 {
+			return ElementID{}, fmt.Errorf("alsa control: element %s is not userspace-owned", spec.ID)
+		}
+		request = uapi.ControlIoctlElementReplace
+		operation = "replace"
+	}
+	if err := h.core.fd.Ioctl(request, unsafe.Pointer(&raw)); err != nil {
+		runtime.KeepAlive(names)
+		return ElementID{}, fmt.Errorf("alsa control: %s user element %s: %w", operation, spec.ID, err)
+	}
+	runtime.KeepAlive(names)
+	return elementIDFromUAPI(raw.ID), nil
+}
+
+func (h *Handle) removeUserElement(id ElementID) error {
+	info, err := h.Info(id)
+	if err != nil {
+		return err
+	}
+	if info.Access&AccessUser == 0 {
+		return fmt.Errorf("alsa control: element %s is not userspace-owned", id)
+	}
+	raw := elementIDToUAPI(id)
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementRemove, unsafe.Pointer(&raw)); err != nil {
+		return fmt.Errorf("alsa control: remove user element %s: %w", id, err)
+	}
+	return nil
+}
+
+func encodeUserElementSpec(spec UserElementSpec) (uapi.ControlElementInfo, []byte, error) {
+	if spec.ID.Interface < InterfaceCard || spec.ID.Interface > InterfaceSequencer {
+		return uapi.ControlElementInfo{}, nil, fmt.Errorf("alsa control: invalid user element interface %d", spec.ID.Interface)
+	}
+	if spec.ID.Name == "" || len(spec.ID.Name) >= len(uapi.ControlElementID{}.Name) || strings.IndexByte(spec.ID.Name, 0) >= 0 {
+		return uapi.ControlElementInfo{}, nil, fmt.Errorf("alsa control: invalid user element name %q", spec.ID.Name)
+	}
+	if spec.Count == 0 {
+		return uapi.ControlElementInfo{}, nil, errors.New("alsa control: user element count must be positive")
+	}
+	raw := uapi.ControlElementInfo{ID: elementIDToUAPI(spec.ID), Type: int32(spec.Type), Count: spec.Count}
+	var names []byte
+	switch spec.Type {
+	case TypeBoolean:
+		if spec.Count > 128 {
+			return raw, nil, fmt.Errorf("alsa control: boolean user element count %d exceeds 128", spec.Count)
+		}
+	case TypeInteger, TypeInteger64:
+		maximum := uint32(128)
+		if spec.Type == TypeInteger64 {
+			maximum = 64
+		}
+		if spec.Count > maximum {
+			return raw, nil, fmt.Errorf("alsa control: integer user element count %d exceeds %d", spec.Count, maximum)
+		}
+		span := uint64(spec.Integer.Maximum) - uint64(spec.Integer.Minimum)
+		if spec.Integer.Minimum > spec.Integer.Maximum || spec.Integer.Step < 0 || spec.Integer.Step > 0 && span%uint64(spec.Integer.Step) != 0 {
+			return raw, nil, fmt.Errorf("alsa control: invalid user element integer range %+v", spec.Integer)
+		}
+		binary.NativeEndian.PutUint64(raw.Value[0:8], uint64(spec.Integer.Minimum))
+		binary.NativeEndian.PutUint64(raw.Value[8:16], uint64(spec.Integer.Maximum))
+		binary.NativeEndian.PutUint64(raw.Value[16:24], uint64(spec.Integer.Step))
+	case TypeEnumerated:
+		if spec.Count > 128 || len(spec.EnumeratedItems) == 0 || uint64(len(spec.EnumeratedItems)) > uint64(^uint32(0)) {
+			return raw, nil, errors.New("alsa control: invalid enumerated user element count or items")
+		}
+		for _, name := range spec.EnumeratedItems {
+			if name == "" || len(name) > 63 || strings.IndexByte(name, 0) >= 0 || len(names)+len(name)+1 > maximumEnumNamesBytes {
+				return raw, nil, fmt.Errorf("alsa control: invalid enumerated item name %q", name)
+			}
+			names = append(names, name...)
+			names = append(names, 0)
+		}
+		binary.NativeEndian.PutUint32(raw.Value[0:4], uint32(len(spec.EnumeratedItems)))
+		binary.NativeEndian.PutUint64(raw.Value[72:80], uint64(uintptr(unsafe.Pointer(unsafe.SliceData(names)))))
+		binary.NativeEndian.PutUint32(raw.Value[80:84], uint32(len(names)))
+	case TypeBytes:
+		if spec.Count > 512 {
+			return raw, nil, fmt.Errorf("alsa control: byte user element count %d exceeds 512", spec.Count)
+		}
+	case TypeIEC958:
+		if spec.Count != 1 {
+			return raw, nil, errors.New("alsa control: IEC958 user element count must be one")
+		}
+	default:
+		return raw, nil, fmt.Errorf("alsa control: unsupported user element type %s", spec.Type)
+	}
+	return raw, names, nil
 }
 
 // ReadTLV reads up to maximumBytes of raw TLV words. The returned slice begins

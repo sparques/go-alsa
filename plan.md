@@ -66,6 +66,8 @@ item does not imply that its phase exit criteria have been met.
     TLVs with nesting and bounds checks.
   - [x] Implement cancellation-aware ordered control event subscriptions.
   - [x] Implement typed card power-state queries and validated state requests.
+  - [x] Implement validated user-element add/replace/remove for boolean,
+    integer, integer64, enumerated, byte, and IEC958 controls.
   - [ ] Implement remaining raw control operations and event stress tests.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name

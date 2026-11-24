@@ -85,6 +85,19 @@ func TestControlLockAndTLVIoctls(t *testing.T) {
 	}
 }
 
+func TestControlUserElementIoctls(t *testing.T) {
+	t.Parallel()
+	if got := iowr(controlIoctlType, 0x17, unsafe.Sizeof(ControlElementInfo{})); got != ControlIoctlElementAdd {
+		t.Fatalf("ELEM_ADD ioctl = %#x; want %#x", got, ControlIoctlElementAdd)
+	}
+	if got := iowr(controlIoctlType, 0x18, unsafe.Sizeof(ControlElementInfo{})); got != ControlIoctlElementReplace {
+		t.Fatalf("ELEM_REPLACE ioctl = %#x; want %#x", got, ControlIoctlElementReplace)
+	}
+	if got := iowr(controlIoctlType, 0x19, unsafe.Sizeof(ControlElementID{})); got != ControlIoctlElementRemove {
+		t.Fatalf("ELEM_REMOVE ioctl = %#x; want %#x", got, ControlIoctlElementRemove)
+	}
+}
+
 func TestControlEventLayoutAndIoctl(t *testing.T) {
 	t.Parallel()
 	if got := unsafe.Sizeof(ControlEvent{}); got != 72 {

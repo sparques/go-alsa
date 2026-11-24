@@ -35,3 +35,7 @@ func (*Handle) subscribe(bool) error                     { return alsa.ErrUnsupp
 func (*Handle) nextEvent(context.Context) (Event, error) { return Event{}, alsa.ErrUnsupportedPlatform }
 func (*Handle) powerState() (PowerState, error)          { return 0, alsa.ErrUnsupportedPlatform }
 func (*Handle) setPowerState(PowerState) error           { return alsa.ErrUnsupportedPlatform }
+func (*Handle) addOrReplaceUserElement(UserElementSpec, bool) (ElementID, error) {
+	return ElementID{}, alsa.ErrUnsupportedPlatform
+}
+func (*Handle) removeUserElement(ElementID) error { return alsa.ErrUnsupportedPlatform }
