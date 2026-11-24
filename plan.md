@@ -64,8 +64,9 @@ item does not imply that its phase exit criteria have been met.
     and pause/resume capabilities; runtime `ENODEV`/`ENXIO` failures preserve
     their errno while classifying as disconnection; kernel stream link/unlink is exposed
     with direction and lifecycle validation; near negotiation selects jointly
-    supported rate, period, and buffer sizes while preserving exact
-    access/format/channels; broader negotiation and remaining lifecycle
+    supported rate, period size/count, and buffer sizes while preserving exact
+    access/format/channels, and negotiated timing/rational-rate/sync metadata is
+    retained; broader negotiation and remaining lifecycle
     operations remain.)
 - [ ] **Phase 4 — raw control API**
   - [x] Negotiate the control protocol during open and expose typed card info

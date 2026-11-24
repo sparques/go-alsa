@@ -75,12 +75,37 @@ func TestValidateHardwareConfig(t *testing.T) {
 		{Access: 99, Format: S16LE, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800},
 		{Access: RWInterleaved, Format: 99, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800},
 		{Access: RWInterleaved, Format: S16LE, Channels: 0, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800},
+		{Access: RWInterleaved, Format: S16LE, Channels: 2, Rate: 48000, PeriodFrames: 480, PeriodCount: -1, BufferFrames: 4800},
 		{Access: RWInterleaved, Format: S16LE, Channels: 2, Rate: 48000, PeriodFrames: 480, BufferFrames: 100},
 	}
 	for _, config := range tests {
 		if err := validateHardwareConfig(config); err == nil {
 			t.Errorf("validateHardwareConfig(%#v) succeeded", config)
 		}
+	}
+}
+
+func TestHardwareSetupMetadata(t *testing.T) {
+	t.Parallel()
+	params := anyHardwareParams()
+	setMask(&params, uapi.PCMHWParamAccess, uint32(RWInterleaved))
+	setMask(&params, uapi.PCMHWParamFormat, uint32(S16LE))
+	setInterval(&params, uapi.PCMHWParamChannels, 2)
+	setInterval(&params, uapi.PCMHWParamRate, 48000)
+	setInterval(&params, uapi.PCMHWParamPeriodTime, 10000)
+	setInterval(&params, uapi.PCMHWParamPeriodSize, 480)
+	setInterval(&params, uapi.PCMHWParamPeriods, 10)
+	setInterval(&params, uapi.PCMHWParamBufferTime, 100000)
+	setInterval(&params, uapi.PCMHWParamBufferSize, 4800)
+	params.RateNumerator = 48000
+	params.RateDenominator = 1
+	params.SyncID[0] = 42
+	setup := hardwareSetup(params)
+	if setup.PeriodCount != 10 || setup.Periods != 10 || setup.PeriodTimeMicros != 10000 || setup.BufferTimeMicros != 100000 {
+		t.Fatalf("timing metadata = %#v", setup)
+	}
+	if setup.RateNumerator != 48000 || setup.RateDenominator != 1 || setup.SyncID[0] != 42 {
+		t.Fatalf("rate/sync metadata = %#v", setup)
 	}
 }
 

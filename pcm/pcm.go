@@ -289,12 +289,16 @@ type HardwareConfig struct {
 	Channels     int
 	Rate         int
 	PeriodFrames int
+	// PeriodCount optionally constrains the number of periods in the ring.
+	// Zero lets the kernel derive it from period and buffer sizes.
+	PeriodCount  int
 	BufferFrames int
 }
 
 // ConfigureHardwareNear keeps access, format, and channel count exact while
-// selecting the nearest jointly supported rate, period size, and buffer size.
-// The returned setup contains the values accepted by the kernel.
+// selecting the nearest jointly supported rate, period size, optional period
+// count, and buffer size. The returned setup contains the values accepted by
+// the kernel.
 func (h *Handle) ConfigureHardwareNear(config HardwareConfig) (HardwareSetup, error) {
 	return h.configureHardwareNear(config)
 }
@@ -306,9 +310,16 @@ type HardwareSetup struct {
 	SampleBits int
 	FrameBits  int
 	Periods    int
-	MSBits     int
-	FIFOFrames uint64
-	InfoFlags  uint32
+	// PeriodTimeMicros and BufferTimeMicros are the exact kernel-selected
+	// durations represented by the corresponding hardware intervals.
+	PeriodTimeMicros int
+	BufferTimeMicros int
+	RateNumerator    uint32
+	RateDenominator  uint32
+	SyncID           [16]byte
+	MSBits           int
+	FIFOFrames       uint64
+	InfoFlags        uint32
 }
 
 // CanPause reports native hardware pause support.

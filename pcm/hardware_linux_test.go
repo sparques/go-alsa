@@ -112,13 +112,16 @@ func TestConfigureHardware(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer handle.Close()
-	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: channels, Rate: 48000, PeriodFrames: 480, BufferFrames: 4800}
+	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: channels, Rate: 48000, PeriodFrames: 480, PeriodCount: 10, BufferFrames: 4800}
 	setup, err := handle.ConfigureHardware(config)
 	if err != nil {
 		t.Fatalf("ConfigureHardware: %v", err)
 	}
 	if setup.Access != config.Access || setup.Format != config.Format || setup.Channels != config.Channels || setup.Rate != config.Rate {
 		t.Errorf("setup = %#v; requested %#v", setup, config)
+	}
+	if setup.Periods != config.PeriodCount || setup.PeriodTimeMicros <= 0 || setup.BufferTimeMicros <= 0 {
+		t.Errorf("timing setup = %#v", setup)
 	}
 	softwareConfig := DefaultSoftwareConfig(stream == alsa.Playback, setup)
 	softwareConfig.TimestampMode = TimestampEnabled

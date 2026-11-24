@@ -106,6 +106,9 @@ func (h *Handle) ConfigureHardware(config HardwareConfig) (HardwareSetup, error)
 	setInterval(&params, uapi.PCMHWParamChannels, uint32(config.Channels))
 	setInterval(&params, uapi.PCMHWParamRate, uint32(config.Rate))
 	setInterval(&params, uapi.PCMHWParamPeriodSize, uint32(config.PeriodFrames))
+	if config.PeriodCount > 0 {
+		setInterval(&params, uapi.PCMHWParamPeriods, uint32(config.PeriodCount))
+	}
 	setInterval(&params, uapi.PCMHWParamBufferSize, uint32(config.BufferFrames))
 	params.RequestMask = ^uint32(0)
 
@@ -135,15 +138,26 @@ func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&params)); err != nil {
 		return HardwareSetup{}, operationError("refine fixed hardware parameters", err)
 	}
-	requests := [...]struct {
+	requests := []struct {
 		parameter int
 		value     uint32
 		name      string
 	}{
 		{uapi.PCMHWParamRate, uint32(config.Rate), "rate"},
 		{uapi.PCMHWParamPeriodSize, uint32(config.PeriodFrames), "period size"},
-		{uapi.PCMHWParamBufferSize, uint32(config.BufferFrames), "buffer size"},
 	}
+	if config.PeriodCount > 0 {
+		requests = append(requests, struct {
+			parameter int
+			value     uint32
+			name      string
+		}{uapi.PCMHWParamPeriods, uint32(config.PeriodCount), "period count"})
+	}
+	requests = append(requests, struct {
+		parameter int
+		value     uint32
+		name      string
+	}{uapi.PCMHWParamBufferSize, uint32(config.BufferFrames), "buffer size"})
 	for _, request := range requests {
 		if err := h.refineNear(&params, request.parameter, request.value); err != nil {
 			return HardwareSetup{}, operationError(fmt.Sprintf("negotiate %s near %d", request.name, request.value), err)
@@ -856,7 +870,10 @@ func validateHardwareConfig(config HardwareConfig) error {
 	if config.BufferFrames < config.PeriodFrames {
 		return errors.New("alsa pcm: buffer frames must not be smaller than period frames")
 	}
-	for _, value := range [...]int{config.Channels, config.Rate, config.PeriodFrames, config.BufferFrames} {
+	if config.PeriodCount < 0 {
+		return errors.New("alsa pcm: period count must not be negative")
+	}
+	for _, value := range [...]int{config.Channels, config.Rate, config.PeriodFrames, config.PeriodCount, config.BufferFrames} {
 		if uint64(value) > uint64(^uint32(0)) {
 			return errors.New("alsa pcm: hardware parameter exceeds the kernel 32-bit interval")
 		}
@@ -979,14 +996,20 @@ func hardwareSetup(params uapi.PCMHWParams) HardwareSetup {
 			Channels:     intervalValue(params, uapi.PCMHWParamChannels),
 			Rate:         intervalValue(params, uapi.PCMHWParamRate),
 			PeriodFrames: intervalValue(params, uapi.PCMHWParamPeriodSize),
+			PeriodCount:  intervalValue(params, uapi.PCMHWParamPeriods),
 			BufferFrames: intervalValue(params, uapi.PCMHWParamBufferSize),
 		},
-		SampleBits: intervalValue(params, uapi.PCMHWParamSampleBits),
-		FrameBits:  intervalValue(params, uapi.PCMHWParamFrameBits),
-		Periods:    intervalValue(params, uapi.PCMHWParamPeriods),
-		MSBits:     int(params.MSBits),
-		FIFOFrames: uint64(params.FIFOSize),
-		InfoFlags:  params.Info,
+		SampleBits:       intervalValue(params, uapi.PCMHWParamSampleBits),
+		FrameBits:        intervalValue(params, uapi.PCMHWParamFrameBits),
+		Periods:          intervalValue(params, uapi.PCMHWParamPeriods),
+		PeriodTimeMicros: intervalValue(params, uapi.PCMHWParamPeriodTime),
+		BufferTimeMicros: intervalValue(params, uapi.PCMHWParamBufferTime),
+		RateNumerator:    params.RateNumerator,
+		RateDenominator:  params.RateDenominator,
+		SyncID:           params.SyncID,
+		MSBits:           int(params.MSBits),
+		FIFOFrames:       uint64(params.FIFOSize),
+		InfoFlags:        params.Info,
 	}
 }
 
