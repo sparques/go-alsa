@@ -47,6 +47,8 @@ func (*Handle) resume() error                  { return alsa.ErrUnsupportedPlatf
 func (*Handle) rewind(uint64) (uint64, error)  { return 0, alsa.ErrUnsupportedPlatform }
 func (*Handle) forward(uint64) (uint64, error) { return 0, alsa.ErrUnsupportedPlatform }
 func (*Handle) syncHardware() error            { return alsa.ErrUnsupportedPlatform }
+func (*Handle) link(*Handle) error             { return alsa.ErrUnsupportedPlatform }
+func (*Handle) unlink() error                  { return alsa.ErrUnsupportedPlatform }
 func (*Handle) transferInterleaved(context.Context, []int16, bool) (int, error) {
 	return 0, alsa.ErrUnsupportedPlatform
 }

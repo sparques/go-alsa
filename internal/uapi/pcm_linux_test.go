@@ -57,6 +57,12 @@ func TestPCMHWParamsLayoutAndIoctls(t *testing.T) {
 	if got := io(pcmIoctlType, 0x12); got != PCMIoctlHWFree {
 		t.Fatalf("HW_FREE ioctl = %#x; want %#x", got, PCMIoctlHWFree)
 	}
+	if got := iow(pcmIoctlType, 0x60, unsafe.Sizeof(int32(0))); got != PCMIoctlLink {
+		t.Fatalf("LINK ioctl = %#x; want %#x", got, PCMIoctlLink)
+	}
+	if got := io(pcmIoctlType, 0x61); got != PCMIoctlUnlink {
+		t.Fatalf("UNLINK ioctl = %#x; want %#x", got, PCMIoctlUnlink)
+	}
 }
 
 func TestPCMSWParamsLayoutAndIoctls(t *testing.T) {

@@ -26,6 +26,25 @@ func TestStrictSuspendRecovery(t *testing.T) {
 	}
 }
 
+func TestLinkValidation(t *testing.T) {
+	t.Parallel()
+	playback := &Handle{stream: streamPlayback}
+	if err := playback.Link(nil); err == nil {
+		t.Fatal("Link(nil) succeeded")
+	}
+	if err := playback.Link(playback); err == nil {
+		t.Fatal("self Link succeeded")
+	}
+	capture := &Handle{stream: streamCapture}
+	if err := playback.Link(capture); !errors.Is(err, ErrDirection) {
+		t.Fatalf("opposite-direction Link = %v; want ErrDirection", err)
+	}
+	peer := &Handle{stream: streamPlayback}
+	if err := playback.Link(peer); !errors.Is(err, ErrState) {
+		t.Fatalf("unconfigured Link = %v; want ErrState", err)
+	}
+}
+
 func TestPollStateErrors(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

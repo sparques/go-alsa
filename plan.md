@@ -58,7 +58,8 @@ item does not imply that its phase exit criteria have been met.
     transfers remain available for interleaved S16_LE; software timestamp mode
     and realtime/monotonic clock selection, available-frame queries, and
     cancellation-aware readiness polling are exposed; strict and automatic
-    suspend recovery preserve `ESTRPIPE`; broader negotiation and remaining
+    suspend recovery preserve `ESTRPIPE`; kernel stream link/unlink is exposed
+    with direction and lifecycle validation; broader negotiation and remaining
     lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
   - [x] Negotiate the control protocol during open and expose typed card info

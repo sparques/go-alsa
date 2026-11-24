@@ -168,6 +168,8 @@ const (
 	PCMIoctlReadInterleaved     = uintptr(0x80184151)
 	PCMIoctlWriteNonInterleaved = uintptr(0x40184152)
 	PCMIoctlReadNonInterleaved  = uintptr(0x80184153)
+	PCMIoctlLink                = uintptr(0x40044160)
+	PCMIoctlUnlink              = uintptr(0x00004161)
 
 	ControlIoctlPCMNextDevice = uintptr(0x80045530)
 	ControlIoctlPCMInfo       = uintptr(0xc1205531)

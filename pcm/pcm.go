@@ -402,6 +402,14 @@ func (h *Handle) Forward(frames uint64) (uint64, error) { return h.forward(frame
 // SyncHardware synchronizes the userspace-visible hardware pointer.
 func (h *Handle) SyncHardware() error { return h.syncHardware() }
 
+// Link synchronizes this stream's start, stop, pause, and resume operations
+// with peer. Both handles must have the same direction and configured hardware
+// parameters. The kernel additionally requires compatible hardware.
+func (h *Handle) Link(peer *Handle) error { return h.link(peer) }
+
+// Unlink removes this stream from its kernel synchronization group.
+func (h *Handle) Unlink() error { return h.unlink() }
+
 type streamDirection uint8
 
 const (

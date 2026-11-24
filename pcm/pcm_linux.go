@@ -891,6 +891,43 @@ func (h *Handle) syncHardware() error {
 	return nil
 }
 
+func (h *Handle) link(peer *Handle) error {
+	if peer == nil {
+		return errors.New("alsa pcm: cannot link a nil peer")
+	}
+	if peer == h {
+		return errors.New("alsa pcm: cannot link a stream to itself")
+	}
+	h.mu.Lock()
+	direction := h.stream
+	configured := h.hardware != nil
+	h.mu.Unlock()
+	peer.mu.Lock()
+	peerDirection := peer.stream
+	peerConfigured := peer.hardware != nil
+	peer.mu.Unlock()
+	if direction != peerDirection {
+		return ErrDirection
+	}
+	if !configured || !peerConfigured {
+		return fmt.Errorf("%w: configure both streams before linking", ErrState)
+	}
+	return peer.core.fd.WithNumber(func(number int) error {
+		peerFD := int32(number)
+		if err := h.core.fd.Ioctl(uapi.PCMIoctlLink, unsafe.Pointer(&peerFD)); err != nil {
+			return fmt.Errorf("alsa pcm: link: %w", err)
+		}
+		return nil
+	})
+}
+
+func (h *Handle) unlink() error {
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlUnlink, nil); err != nil {
+		return fmt.Errorf("alsa pcm: unlink: %w", err)
+	}
+	return nil
+}
+
 func singleMaskValue(p uapi.PCMHWParams, parameter int) int {
 	mask := p.Masks[parameter-uapi.PCMHWParamFirstMask]
 	for wordIndex, word := range mask.Bits {

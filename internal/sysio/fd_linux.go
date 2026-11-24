@@ -104,6 +104,18 @@ func (f *FD) Ioctl(request uintptr, argument unsafe.Pointer) error {
 	return f.sys.Ioctl(f.number, request, argument)
 }
 
+// WithNumber calls fn while preventing the descriptor from being closed or
+// reused. It is intended for kernel APIs that take a peer descriptor as an
+// ioctl argument; callers must not retain number after fn returns.
+func (f *FD) WithNumber(fn func(number int) error) error {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	if f.closed {
+		return io.ErrClosedPipe
+	}
+	return fn(f.number)
+}
+
 // Read performs one nonblocking descriptor read while preventing reuse.
 func (f *FD) Read(buffer []byte) (int, error) {
 	f.mu.RLock()

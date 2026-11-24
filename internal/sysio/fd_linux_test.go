@@ -191,6 +191,46 @@ func TestFDCloseIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestFDWithNumberPinsDescriptor(t *testing.T) {
+	t.Parallel()
+	sys := &fakeSystemCalls{fd: 12}
+	fd, err := openWith("ignored", syscall.O_RDWR, sys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	callbackDone := make(chan error, 1)
+	go func() {
+		callbackDone <- fd.WithNumber(func(number int) error {
+			if number != 12 {
+				t.Errorf("number = %d; want 12", number)
+			}
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+	<-entered
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- fd.Close() }()
+	select {
+	case err := <-closeDone:
+		t.Fatalf("Close returned while descriptor callback was active: %v", err)
+	case <-time.After(10 * time.Millisecond):
+	}
+	close(release)
+	if err := <-callbackDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-closeDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := fd.WithNumber(func(int) error { return nil }); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("WithNumber after Close = %v; want io.ErrClosedPipe", err)
+	}
+}
+
 func TestFDReadWriteSeams(t *testing.T) {
 	t.Parallel()
 	sys := &fakeSystemCalls{fd: 12, readData: []byte("input")}
