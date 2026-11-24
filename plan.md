@@ -21,9 +21,10 @@ item does not imply that its phase exit criteria have been met.
   - [ ] Pin source headers and add the maintainer ABI generator/conformance
     probe for every supported architecture. (A current-host conformance probe
     now covers the checked-in discovery ABI.)
-  - [ ] Add the race-safe descriptor wrapper and deterministic syscall seams.
-    (Implemented for nonblocking ioctl handles; poll/read/write integration is
-    still pending.)
+  - [x] Add a race-safe descriptor wrapper with deterministic open, ioctl,
+    read, write and close syscall seams.
+  - [x] Make ppoll/eventfd creation injectable and test cancellation both
+    deterministically and against real nonblocking pipes.
   - [x] Add context cancellation using `ppoll` and eventfd wakeups, including
     close-triggered wakeup and concurrency tests.
   - [ ] Meet the complete Phase 1 exit criteria on amd64 and arm64.
@@ -74,7 +75,8 @@ item does not imply that its phase exit criteria have been met.
     userspace controls under bounded cancellation and guaranteed cleanup.
   - [x] Read full card component strings with bounded CARD_BYTES allocation,
     change retries, and an explicit legacy-kernel completeness fallback.
-  - [ ] Implement remaining raw control operations.
+  - [x] Complete the card/control-element ioctl inventory. HWDEP, RawMIDI, UMP,
+    and preferred-subdevice ioctls are separate device-discovery extensions.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name
     and index; provide typed reads and validated writes.

@@ -18,6 +18,9 @@ type systemCalls interface {
 	Close(fd int) error
 	Ioctl(fd int, request uintptr, argument unsafe.Pointer) error
 	Read(fd int, buffer []byte) (int, error)
+	Write(fd int, buffer []byte) (int, error)
+	Eventfd(initval uint, flags int) (int, error)
+	Ppoll(fds []unix.PollFd, timeout *unix.Timespec, sigmask *unix.Sigset_t) (int, error)
 }
 
 type linuxSystemCalls struct{}
@@ -35,6 +38,23 @@ func (linuxSystemCalls) Read(fd int, buffer []byte) (int, error) {
 			return count, err
 		}
 	}
+}
+
+func (linuxSystemCalls) Write(fd int, buffer []byte) (int, error) {
+	for {
+		count, err := syscall.Write(fd, buffer)
+		if err != syscall.EINTR {
+			return count, err
+		}
+	}
+}
+
+func (linuxSystemCalls) Eventfd(initval uint, flags int) (int, error) {
+	return unix.Eventfd(initval, flags)
+}
+
+func (linuxSystemCalls) Ppoll(fds []unix.PollFd, timeout *unix.Timespec, sigmask *unix.Sigset_t) (int, error) {
+	return unix.Ppoll(fds, timeout, sigmask)
 }
 
 func (linuxSystemCalls) Ioctl(fd int, request uintptr, argument unsafe.Pointer) error {
@@ -94,6 +114,16 @@ func (f *FD) Read(buffer []byte) (int, error) {
 	return f.sys.Read(f.number, buffer)
 }
 
+// Write performs one nonblocking descriptor write while preventing reuse.
+func (f *FD) Write(buffer []byte) (int, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	if f.closed {
+		return 0, io.ErrClosedPipe
+	}
+	return f.sys.Write(f.number, buffer)
+}
+
 // Close closes the descriptor after any in-flight operation completes. It is
 // idempotent. Linux close errors are returned but close is never retried,
 // because retrying can close an unrelated reused descriptor.
@@ -118,11 +148,11 @@ func (f *FD) Wait(ctx context.Context, events int16) (int16, error) {
 	if f.closed {
 		return 0, io.ErrClosedPipe
 	}
-	wake, err := unix.Eventfd(0, unix.EFD_CLOEXEC|unix.EFD_NONBLOCK)
+	wake, err := f.sys.Eventfd(0, unix.EFD_CLOEXEC|unix.EFD_NONBLOCK)
 	if err != nil {
 		return 0, err
 	}
-	defer unix.Close(wake)
+	defer f.sys.Close(wake)
 
 	done := make(chan struct{})
 	wakerDone := make(chan struct{})
@@ -136,7 +166,7 @@ func (f *FD) Wait(ctx context.Context, events int16) (int16, error) {
 		}
 		var value [8]byte
 		value[0] = 1
-		_, _ = unix.Write(wake, value[:])
+		_, _ = f.sys.Write(wake, value[:])
 	}()
 
 	pollFDs := []unix.PollFd{
@@ -144,7 +174,7 @@ func (f *FD) Wait(ctx context.Context, events int16) (int16, error) {
 		{Fd: int32(wake), Events: unix.POLLIN},
 	}
 	for {
-		_, err = unix.Ppoll(pollFDs, nil, nil)
+		_, err = f.sys.Ppoll(pollFDs, nil, nil)
 		if err == syscall.EINTR {
 			continue
 		}
