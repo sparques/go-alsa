@@ -76,8 +76,10 @@ item does not imply that its phase exit criteria have been met.
     direction and kind classification while retaining unknown raw events.
   - [x] Expose vendor-named enumerated mixer controls, item names, per-channel
     selections and validated writes without guessing their direction.
-  - [ ] Add channel identities, joined/exclusive semantics, caching and broader
-    hardware fixtures.
+  - [x] Cache capability discovery with defensive copies, explicit refresh,
+    uncached values, and INFO/ADD/REMOVE/TLV event invalidation.
+  - [ ] Add channel identities, joined/exclusive semantics, and broader hardware
+    fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**

@@ -78,6 +78,17 @@ func TestMixerHardware(t *testing.T) {
 			}
 		}
 	}
+	if len(elements) > 0 {
+		originalName := elements[0].Name
+		elements[0].Name = "modified test copy"
+		cached, err := handle.Elements()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(cached) != len(elements) || cached[0].Name != originalName {
+			t.Fatalf("cached elements were not isolated: got %d elements, first name %q", len(cached), cached[0].Name)
+		}
+	}
 
 	enumerations, err := handle.EnumeratedElements()
 	if err != nil {
@@ -94,6 +105,24 @@ func TestMixerHardware(t *testing.T) {
 			if err := element.SetValues(values); err != nil {
 				t.Fatal(err)
 			}
+		}
+	}
+	if len(enumerations) > 0 {
+		originalName := enumerations[0].Name
+		originalItems := enumerations[0].Items()
+		enumerations[0].Name = "modified test copy"
+		if len(enumerations[0].items) > 0 {
+			enumerations[0].items[0] = "modified test item"
+		}
+		cached, err := handle.EnumeratedElements()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(cached) != len(enumerations) || cached[0].Name != originalName {
+			t.Fatal("cached enumerated elements were not isolated")
+		}
+		if len(originalItems) > 0 && cached[0].Items()[0] != originalItems[0] {
+			t.Fatal("cached enumerated item names were not isolated")
 		}
 	}
 }

@@ -65,6 +65,32 @@ func TestEnumeratedElementMetadata(t *testing.T) {
 	}
 }
 
+func TestDiscoveryCacheDefensiveCopiesAndRefresh(t *testing.T) {
+	handle := &Handle{}
+	handle.elementsCached = true
+	handle.elementsCache = []*Element{{Name: "Speaker", playbackVolume: &binding{id: control.ElementID{Name: "Speaker Playback Volume"}}}}
+	handle.enumerationsCached = true
+	handle.enumerationsCache = []*EnumeratedElement{{Name: "Input Source", items: []string{"Mic", "Line"}}}
+
+	elements := cloneElements(handle.elementsCache)
+	elements[0].Name = "changed"
+	elements[0].playbackVolume.id.Name = "changed"
+	if handle.elementsCache[0].Name != "Speaker" || handle.elementsCache[0].playbackVolume.id.Name != "Speaker Playback Volume" {
+		t.Fatal("simple-element clone modified cache")
+	}
+	enumerations := cloneEnumeratedElements(handle.enumerationsCache)
+	enumerations[0].Name = "changed"
+	enumerations[0].items[0] = "changed"
+	if handle.enumerationsCache[0].Name != "Input Source" || handle.enumerationsCache[0].items[0] != "Mic" {
+		t.Fatal("enumerated-element clone modified cache")
+	}
+
+	handle.Refresh()
+	if handle.elementsCached || handle.elementsCache != nil || handle.enumerationsCached || handle.enumerationsCache != nil {
+		t.Fatal("Refresh did not clear discovery caches")
+	}
+}
+
 func TestNormalizeRaw(t *testing.T) {
 	integer := control.IntegerRange{Minimum: -10, Maximum: 30, Step: 4}
 	for _, test := range []struct {

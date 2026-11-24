@@ -6,11 +6,20 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/sparques/go-alsa/control"
 )
 
-type Handle struct{ control *control.Handle }
+type Handle struct {
+	control *control.Handle
+	cacheMu sync.Mutex
+
+	elementsCached     bool
+	elementsCache      []*Element
+	enumerationsCached bool
+	enumerationsCache  []*EnumeratedElement
+}
 
 func Open(selector string) (*Handle, error) {
 	handle, err := control.Open(selector)
@@ -20,7 +29,21 @@ func Open(selector string) (*Handle, error) {
 	return &Handle{control: handle}, nil
 }
 
-func (h *Handle) Close() error { return h.control.Close() }
+func (h *Handle) Close() error {
+	h.Refresh()
+	return h.control.Close()
+}
+
+// Refresh discards cached mixer topology and capability metadata. Values are
+// always read directly from the kernel and are never cached.
+func (h *Handle) Refresh() {
+	h.cacheMu.Lock()
+	h.elementsCached = false
+	h.elementsCache = nil
+	h.enumerationsCached = false
+	h.enumerationsCache = nil
+	h.cacheMu.Unlock()
+}
 
 // EventKind identifies the conventional role of a changed mixer control.
 type EventKind uint8
@@ -61,6 +84,9 @@ func (h *Handle) NextEvent(ctx context.Context) (Event, error) {
 	raw, err := h.control.NextEvent(ctx)
 	if err != nil {
 		return Event{}, err
+	}
+	if raw.Mask == control.EventRemove || raw.Mask&(control.EventInfo|control.EventAdd|control.EventTLV) != 0 {
+		h.Refresh()
 	}
 	return classifyEvent(raw), nil
 }
@@ -132,6 +158,11 @@ func (e *EnumeratedElement) SetValues(values []uint32) error {
 // EnumeratedElements returns every enumerated MIXER control without inferring
 // playback/capture direction from vendor-specific names.
 func (h *Handle) EnumeratedElements() ([]*EnumeratedElement, error) {
+	h.cacheMu.Lock()
+	defer h.cacheMu.Unlock()
+	if h.enumerationsCached {
+		return cloneEnumeratedElements(h.enumerationsCache), nil
+	}
 	ids, err := h.control.Elements()
 	if err != nil {
 		return nil, err
@@ -165,7 +196,19 @@ func (h *Handle) EnumeratedElements() ([]*EnumeratedElement, error) {
 		}
 		return result[i].Index < result[j].Index
 	})
-	return result, nil
+	h.enumerationsCache = result
+	h.enumerationsCached = true
+	return cloneEnumeratedElements(result), nil
+}
+
+func cloneEnumeratedElements(elements []*EnumeratedElement) []*EnumeratedElement {
+	result := make([]*EnumeratedElement, len(elements))
+	for index, element := range elements {
+		clone := *element
+		clone.items = append([]string(nil), element.items...)
+		result[index] = &clone
+	}
+	return result
 }
 
 // Element groups conventional simple controls sharing a base name and index.
@@ -187,6 +230,11 @@ func (e *Element) HasCaptureVolume() bool  { return e.captureVolume != nil }
 
 // Elements discovers standard simple-element suffixes on MIXER controls.
 func (h *Handle) Elements() ([]*Element, error) {
+	h.cacheMu.Lock()
+	defer h.cacheMu.Unlock()
+	if h.elementsCached {
+		return cloneElements(h.elementsCache), nil
+	}
 	ids, err := h.control.Elements()
 	if err != nil {
 		return nil, err
@@ -246,7 +294,30 @@ func (h *Handle) Elements() ([]*Element, error) {
 		}
 		return result[i].Index < result[j].Index
 	})
-	return result, nil
+	h.elementsCache = result
+	h.elementsCached = true
+	return cloneElements(result), nil
+}
+
+func cloneElements(elements []*Element) []*Element {
+	result := make([]*Element, len(elements))
+	for index, element := range elements {
+		clone := *element
+		clone.playbackSwitch = cloneBinding(element.playbackSwitch)
+		clone.playbackVolume = cloneBinding(element.playbackVolume)
+		clone.captureSwitch = cloneBinding(element.captureSwitch)
+		clone.captureVolume = cloneBinding(element.captureVolume)
+		result[index] = &clone
+	}
+	return result
+}
+
+func cloneBinding(item *binding) *binding {
+	if item == nil {
+		return nil
+	}
+	clone := *item
+	return &clone
 }
 
 func splitSimpleName(name string) (string, string, bool) {
