@@ -25,6 +25,9 @@ for _, card := range cards {
 ```
 
 Linux amd64 and arm64 are the initial release-blocking architectures.
+See [compatibility](docs/compatibility.md), [troubleshooting](docs/troubleshooting.md),
+and the current [hardware/build test matrix](docs/test-matrix.md) for precise
+support boundaries and reproducible evidence.
 
 Run `go run ./cmd/alsa-info-go` to inspect the cards and PCM devices reported by
 the kernel.

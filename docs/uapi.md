@@ -46,9 +46,9 @@ The control and PCM discovery slice uses:
 - `SNDRV_PCM_IOCTL_PVERSION` and `SNDRV_PCM_IOCTL_INFO` when opening a direct
   kernel PCM handle.
 
-Streaming requires the substantially larger `snd_pcm_hw_params`, `snd_pcm_sw_params`,
-transfer, status, sync-pointer, and channel-area structures. Those definitions
-will be introduced with their corresponding behavioral tests rather than as an
+Streaming requires the substantially larger `snd_pcm_hw_params`,
+`snd_pcm_sw_params`, transfer, status, and channel-area structures. Definitions
+are introduced with their corresponding behavioral tests rather than as an
 untested bulk transcription.
 
 The first streaming-related definition, `snd_pcm_hw_params`, is now checked for
@@ -57,10 +57,12 @@ negotiation. The remaining streaming ABI is being introduced alongside each
 behavioral implementation rather than as an untested bulk transcription.
 
 Software parameters, prepare/start, and interleaved transfer ioctls are now
-represented and checked as well. The first transfer API is deliberately strict:
-it reports XRUNs for explicit recovery instead of silently preparing the stream.
-Synchronization pointers, non-interleaved access, and mmap channel areas remain
-pending. Kernel status and delay ioctls are represented and used by the public
-PCM API. State-aware playback drain uses those snapshots to distinguish
+represented and checked as well. Transfers default to strict XRUN/suspend
+reporting; applications may explicitly enable the separate automatic recovery
+policy.
+Non-interleaved read/write access is implemented. Synchronization-pointer and
+mmap channel-area support remain pending. Kernel status and delay ioctls are
+represented and used by the public PCM API. State-aware playback drain uses
+those snapshots to distinguish
 DRAINING, completion in SETUP, XRUN, and disconnection; this avoids treating
 ALSA's device-specific `POLLERR` drain notification as a generic I/O failure.

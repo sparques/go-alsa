@@ -12,7 +12,7 @@ item does not imply that its phase exit criteria have been met.
     versions, and architecture policy in `docs/uapi.md`.
   - [ ] Complete the PCM/control UAPI inventory and compatibility matrices.
   - [ ] Add libasound reference probes and normalized comparison fixtures.
-  - [ ] Select and document minimum Go and Linux kernel versions.
+  - [x] Select and document minimum Go and Linux kernel versions.
 - [ ] **Phase 1 — Linux UAPI and ioctl foundation**
   - [x] Implement Linux ioctl encoding and compile-time/runtime layout checks
     for the initial control and PCM discovery structures.
@@ -42,7 +42,8 @@ item does not imply that its phase exit criteria have been met.
     syscall errors for `errors.Is`.
   - [ ] Compare enumeration with `aplay`, `arecord`, and libasound on the full
     virtual/real hardware matrix. (The current amd64 host agrees with `aplay -l`
-    and `arecord -l` for its HDA playback/capture and USB capture devices.)
+    and `arecord -l` across HDA/HDMI, onboard analog/digital, USB camera, and
+    USB C-Media devices; virtual and arm64 hardware remain.)
 - [ ] **Phase 3 — direct PCM engine**
   - [x] Open a resolved direct PCM nonblocking, check its protocol major, query
     stream metadata, enforce direction, and close it idempotently. An opt-in
