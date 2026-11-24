@@ -28,6 +28,24 @@ func TestSplitSimpleName(t *testing.T) {
 	}
 }
 
+func TestClassifyEvent(t *testing.T) {
+	raw := control.Event{
+		Mask: control.EventValue,
+		ID:   control.ElementID{Interface: control.InterfaceMixer, Name: "Speaker Playback Volume", Index: 2},
+	}
+	got := classifyEvent(raw)
+	if got.Raw != raw || !got.Recognized || got.Name != "Speaker" || got.Index != 2 ||
+		got.Direction != DirectionPlayback || got.Kind != EventVolume {
+		t.Fatalf("classifyEvent() = %+v", got)
+	}
+
+	unknownRaw := control.Event{ID: control.ElementID{Interface: control.InterfaceCard, Name: "Speaker Playback Volume"}}
+	unknown := classifyEvent(unknownRaw)
+	if unknown.Raw != unknownRaw || unknown.Recognized || unknown.Direction != DirectionUnknown || unknown.Kind != EventUnknown {
+		t.Fatalf("classifyEvent(unknown) = %+v", unknown)
+	}
+}
+
 func TestNormalizeRaw(t *testing.T) {
 	integer := control.IntegerRange{Minimum: -10, Maximum: 30, Step: 4}
 	for _, test := range []struct {

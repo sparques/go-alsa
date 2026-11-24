@@ -71,8 +71,10 @@ item does not imply that its phase exit criteria have been met.
     and index; provide typed reads and validated writes.
   - [x] Convert dB scale, min/max, and range TLVs to hundredths-of-dB values.
   - [x] Add bounded, step-aware normalized raw-volume APIs.
+  - [x] Forward cancellation-aware control events with simple-element
+    direction and kind classification while retaining unknown raw events.
   - [ ] Add channel identities, joined/exclusive semantics, enum elements,
-    caching/events, and broader hardware fixtures.
+    caching and broader hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**

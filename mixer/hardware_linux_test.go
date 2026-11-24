@@ -3,8 +3,12 @@
 package mixer
 
 import (
+	"context"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/sparques/go-alsa/control"
 )
 
 func TestMixerHardware(t *testing.T) {
@@ -72,6 +76,104 @@ func TestMixerHardware(t *testing.T) {
 			if err := element.SetCaptureVolumeNormalized(volume.Normalized); err != nil {
 				t.Fatal(err)
 			}
+		}
+	}
+}
+
+func TestMixerHardwareEvent(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_MIXER")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_MIXER to an ALSA card number or ID")
+	}
+	subscriber, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer subscriber.Close()
+	writer, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+
+	elements, err := writer.Elements()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var target *Element
+	for _, element := range elements {
+		if element.playbackSwitch != nil && element.playbackSwitch.info.Access.Writable() {
+			target = element
+			break
+		}
+		if element.captureSwitch != nil && element.captureSwitch.info.Access.Writable() {
+			target = element
+			break
+		}
+	}
+	if target == nil {
+		t.Skip("no writable conventional switch found")
+	}
+	playback := target.playbackSwitch != nil && target.playbackSwitch.info.Access.Writable()
+	var original []bool
+	if playback {
+		original, err = target.PlaybackSwitch()
+	} else {
+		original, err = target.CaptureSwitch()
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(original) == 0 {
+		t.Fatal("switch has no channels")
+	}
+	replacement := append([]bool(nil), original...)
+	replacement[0] = !replacement[0]
+	restore := func() {
+		var restoreErr error
+		if playback {
+			restoreErr = target.SetPlaybackSwitch(original)
+		} else {
+			restoreErr = target.SetCaptureSwitch(original)
+		}
+		if restoreErr != nil {
+			t.Errorf("restore switch: %v", restoreErr)
+		}
+	}
+	t.Cleanup(restore)
+
+	if err := subscriber.Subscribe(true); err != nil {
+		t.Fatal(err)
+	}
+	defer subscriber.Subscribe(false)
+	if playback {
+		err = target.SetPlaybackSwitch(replacement)
+	} else {
+		err = target.SetCaptureSwitch(replacement)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	for {
+		event, err := subscriber.NextEvent(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if event.Recognized && event.Name == target.Name && event.Index == target.Index &&
+			event.Kind == EventSwitch && event.Raw.Mask&control.EventValue != 0 {
+			wantDirection := DirectionCapture
+			if playback {
+				wantDirection = DirectionPlayback
+			}
+			if event.Direction != wantDirection {
+				t.Fatalf("event direction = %v; want %v", event.Direction, wantDirection)
+			}
+			t.Logf("event name=%q index=%d direction=%d kind=%d mask=%#x",
+				event.Name, event.Index, event.Direction, event.Kind, event.Raw.Mask)
+			return
 		}
 	}
 }

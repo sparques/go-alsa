@@ -1,6 +1,7 @@
 package mixer
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -20,6 +21,73 @@ func Open(selector string) (*Handle, error) {
 }
 
 func (h *Handle) Close() error { return h.control.Close() }
+
+// EventKind identifies the conventional role of a changed mixer control.
+type EventKind uint8
+
+const (
+	EventUnknown EventKind = iota
+	EventSwitch
+	EventVolume
+)
+
+// Direction identifies whether a conventional mixer control is used for
+// playback or capture.
+type Direction uint8
+
+const (
+	DirectionUnknown Direction = iota
+	DirectionPlayback
+	DirectionCapture
+)
+
+// Event reports a raw control event and, when recognized, its simple-element
+// identity. Unknown controls retain Raw and have Recognized set to false.
+type Event struct {
+	Raw        control.Event
+	Name       string
+	Index      uint32
+	Direction  Direction
+	Kind       EventKind
+	Recognized bool
+}
+
+// Subscribe enables or disables kernel mixer-control events.
+func (h *Handle) Subscribe(enabled bool) error { return h.control.Subscribe(enabled) }
+
+// NextEvent waits for the next control event and classifies conventional
+// playback/capture switch and volume controls.
+func (h *Handle) NextEvent(ctx context.Context) (Event, error) {
+	raw, err := h.control.NextEvent(ctx)
+	if err != nil {
+		return Event{}, err
+	}
+	return classifyEvent(raw), nil
+}
+
+func classifyEvent(raw control.Event) Event {
+	event := Event{Raw: raw, Index: raw.ID.Index}
+	if raw.ID.Interface != control.InterfaceMixer {
+		return event
+	}
+	base, kind, ok := splitSimpleName(raw.ID.Name)
+	if !ok {
+		return event
+	}
+	event.Name = base
+	event.Recognized = true
+	switch kind {
+	case "playback_switch":
+		event.Direction, event.Kind = DirectionPlayback, EventSwitch
+	case "playback_volume":
+		event.Direction, event.Kind = DirectionPlayback, EventVolume
+	case "capture_switch":
+		event.Direction, event.Kind = DirectionCapture, EventSwitch
+	case "capture_volume":
+		event.Direction, event.Kind = DirectionCapture, EventVolume
+	}
+	return event
+}
 
 type binding struct {
 	id   control.ElementID
