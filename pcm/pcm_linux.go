@@ -372,6 +372,14 @@ func (h *Handle) available() (uint64, error) {
 	return status.AvailableFrames, nil
 }
 
+func (h *Handle) hardwareTimestamp() (uint64, Timestamp, error) {
+	status, err := h.status()
+	if err != nil {
+		return 0, Timestamp{}, err
+	}
+	return status.AvailableFrames, status.Timestamp, nil
+}
+
 func (h *Handle) wait(ctx context.Context) error {
 	h.mu.Lock()
 	if h.hardware == nil {
@@ -983,6 +991,9 @@ func hardwareSetup(params uapi.PCMHWParams) HardwareSetup {
 }
 
 func (h *Handle) reset() error {
+	if _, err := h.requireHardware("reset"); err != nil {
+		return err
+	}
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlReset, nil); err != nil {
@@ -992,6 +1003,19 @@ func (h *Handle) reset() error {
 }
 
 func (h *Handle) pause(paused bool) error {
+	setup, err := h.requireHardware("pause")
+	if err != nil {
+		return err
+	}
+	if !setup.CanPause() {
+		return errors.New("alsa pcm: hardware does not support pause")
+	}
+	h.mu.Lock()
+	prepared := h.prepared
+	h.mu.Unlock()
+	if !prepared {
+		return fmt.Errorf("%w: prepare before pause", ErrState)
+	}
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	value := int32(0)
@@ -1005,6 +1029,13 @@ func (h *Handle) pause(paused bool) error {
 }
 
 func (h *Handle) resume() error {
+	setup, err := h.requireHardware("resume")
+	if err != nil {
+		return err
+	}
+	if !setup.CanResume() {
+		return errors.New("alsa pcm: hardware does not support resume")
+	}
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlResume, nil); err != nil {
@@ -1022,6 +1053,9 @@ func (h *Handle) forward(frames uint64) (uint64, error) {
 }
 
 func (h *Handle) moveApplicationPointer(request uintptr, frames uint64, operation string) (uint64, error) {
+	if _, err := h.requireHardware(operation); err != nil {
+		return 0, err
+	}
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	actual := frames
@@ -1032,12 +1066,24 @@ func (h *Handle) moveApplicationPointer(request uintptr, frames uint64, operatio
 }
 
 func (h *Handle) syncHardware() error {
+	if _, err := h.requireHardware("synchronize hardware pointer"); err != nil {
+		return err
+	}
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWSync, nil); err != nil {
 		return fmt.Errorf("alsa pcm: synchronize hardware pointer: %w", err)
 	}
 	return nil
+}
+
+func (h *Handle) requireHardware(operation string) (HardwareSetup, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hardware == nil {
+		return HardwareSetup{}, fmt.Errorf("%w: configure hardware before %s", ErrState, operation)
+	}
+	return *h.hardware, nil
 }
 
 func (h *Handle) link(peer *Handle) error {

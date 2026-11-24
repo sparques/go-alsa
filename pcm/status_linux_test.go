@@ -45,6 +45,38 @@ func TestLinkValidation(t *testing.T) {
 	}
 }
 
+func TestLifecycleRequiresHardwareConfiguration(t *testing.T) {
+	t.Parallel()
+	handle := &Handle{}
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{"reset", handle.Reset},
+		{"pause", func() error { return handle.Pause(true) }},
+		{"resume", handle.Resume},
+		{"rewind", func() error { _, err := handle.Rewind(1); return err }},
+		{"forward", func() error { _, err := handle.Forward(1); return err }},
+		{"sync", handle.SyncHardware},
+	}
+	for _, test := range tests {
+		if err := test.call(); !errors.Is(err, ErrState) {
+			t.Errorf("%s error = %v; want ErrState", test.name, err)
+		}
+	}
+}
+
+func TestPauseResumeCapabilities(t *testing.T) {
+	t.Parallel()
+	handle := &Handle{hardware: &HardwareSetup{}, prepared: true}
+	if err := handle.Pause(true); err == nil {
+		t.Fatal("Pause succeeded without hardware support")
+	}
+	if err := handle.Resume(); err == nil {
+		t.Fatal("Resume succeeded without hardware support")
+	}
+}
+
 func TestPollStateErrors(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

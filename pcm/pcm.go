@@ -380,6 +380,13 @@ func (h *Handle) Delay() (int64, error) { return h.delay() }
 // data.
 func (h *Handle) Available() (uint64, error) { return h.available() }
 
+// HardwareTimestamp returns the currently available frames and their matching
+// kernel status timestamp from one atomic status snapshot. Timestamp updates
+// require TimestampEnabled software configuration.
+func (h *Handle) HardwareTimestamp() (uint64, Timestamp, error) {
+	return h.hardwareTimestamp()
+}
+
 // Wait blocks until a transfer can make progress, the stream enters an error
 // state, the context is canceled, or the handle is closed. It uses POLLOUT for
 // playback and POLLIN for capture.

@@ -36,14 +36,17 @@ func (*Handle) ConfigureSoftwareDefaults() (SoftwareSetup, error) {
 	return SoftwareSetup{}, alsa.ErrUnsupportedPlatform
 }
 
-func (*Handle) Prepare() error                 { return alsa.ErrUnsupportedPlatform }
-func (*Handle) start() error                   { return alsa.ErrUnsupportedPlatform }
-func (*Handle) drop() error                    { return alsa.ErrUnsupportedPlatform }
-func (*Handle) drain(context.Context) error    { return alsa.ErrUnsupportedPlatform }
-func (*Handle) freeHardware() error            { return alsa.ErrUnsupportedPlatform }
-func (*Handle) status() (Status, error)        { return Status{}, alsa.ErrUnsupportedPlatform }
-func (*Handle) delay() (int64, error)          { return 0, alsa.ErrUnsupportedPlatform }
-func (*Handle) available() (uint64, error)     { return 0, alsa.ErrUnsupportedPlatform }
+func (*Handle) Prepare() error              { return alsa.ErrUnsupportedPlatform }
+func (*Handle) start() error                { return alsa.ErrUnsupportedPlatform }
+func (*Handle) drop() error                 { return alsa.ErrUnsupportedPlatform }
+func (*Handle) drain(context.Context) error { return alsa.ErrUnsupportedPlatform }
+func (*Handle) freeHardware() error         { return alsa.ErrUnsupportedPlatform }
+func (*Handle) status() (Status, error)     { return Status{}, alsa.ErrUnsupportedPlatform }
+func (*Handle) delay() (int64, error)       { return 0, alsa.ErrUnsupportedPlatform }
+func (*Handle) available() (uint64, error)  { return 0, alsa.ErrUnsupportedPlatform }
+func (*Handle) hardwareTimestamp() (uint64, Timestamp, error) {
+	return 0, Timestamp{}, alsa.ErrUnsupportedPlatform
+}
 func (*Handle) wait(context.Context) error     { return alsa.ErrUnsupportedPlatform }
 func (*Handle) reset() error                   { return alsa.ErrUnsupportedPlatform }
 func (*Handle) pause(bool) error               { return alsa.ErrUnsupportedPlatform }

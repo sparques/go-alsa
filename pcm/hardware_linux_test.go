@@ -141,6 +141,13 @@ func TestConfigureHardware(t *testing.T) {
 	if available > uint64(setup.BufferFrames) {
 		t.Errorf("available frames = %d; buffer has %d", available, setup.BufferFrames)
 	}
+	timestampAvailable, timestamp, err := handle.HardwareTimestamp()
+	if err != nil {
+		t.Fatalf("HardwareTimestamp: %v", err)
+	}
+	if timestampAvailable > uint64(setup.BufferFrames) || timestamp.Nanoseconds < 0 || timestamp.Nanoseconds >= int64(time.Second) {
+		t.Errorf("hardware timestamp = available %d, timestamp %#v", timestampAvailable, timestamp)
+	}
 	if stream == alsa.Playback {
 		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 		defer cancel()
