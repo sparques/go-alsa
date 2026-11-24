@@ -282,8 +282,7 @@ type Capabilities struct {
 // ranges without changing the PCM state.
 func (h *Handle) Capabilities() (Capabilities, error) { return h.capabilities() }
 
-// HardwareConfig constrains direct hardware parameters. This initial API
-// requires exact values; later negotiation APIs will expose near/range policy.
+// HardwareConfig describes requested direct hardware parameters.
 type HardwareConfig struct {
 	Access       Access
 	Format       Format
@@ -291,6 +290,13 @@ type HardwareConfig struct {
 	Rate         int
 	PeriodFrames int
 	BufferFrames int
+}
+
+// ConfigureHardwareNear keeps access, format, and channel count exact while
+// selecting the nearest jointly supported rate, period size, and buffer size.
+// The returned setup contains the values accepted by the kernel.
+func (h *Handle) ConfigureHardwareNear(config HardwareConfig) (HardwareSetup, error) {
+	return h.configureHardwareNear(config)
 }
 
 // HardwareSetup contains the parameters accepted by the kernel and additional

@@ -157,6 +157,21 @@ func TestConfigureHardware(t *testing.T) {
 	if err := handle.FreeHardware(); err != nil {
 		t.Fatalf("second FreeHardware: %v", err)
 	}
+	near := config
+	near.Rate--
+	near.PeriodFrames--
+	near.BufferFrames--
+	nearSetup, err := handle.ConfigureHardwareNear(near)
+	if err != nil {
+		t.Fatalf("ConfigureHardwareNear: %v", err)
+	}
+	if nearSetup.Access != near.Access || nearSetup.Format != near.Format || nearSetup.Channels != near.Channels ||
+		nearSetup.Rate <= 0 || nearSetup.PeriodFrames <= 0 || nearSetup.BufferFrames < nearSetup.PeriodFrames {
+		t.Errorf("near setup = %#v; requested %#v", nearSetup, near)
+	}
+	if err := handle.FreeHardware(); err != nil {
+		t.Fatalf("FreeHardware after near configuration: %v", err)
+	}
 }
 
 func TestTransferHardware(t *testing.T) {

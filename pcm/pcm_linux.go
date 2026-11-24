@@ -119,6 +119,138 @@ func (h *Handle) ConfigureHardware(config HardwareConfig) (HardwareSetup, error)
 	return setup, nil
 }
 
+func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, error) {
+	if err := validateHardwareConfig(config); err != nil {
+		return HardwareSetup{}, err
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	params := anyHardwareParams()
+	setMask(&params, uapi.PCMHWParamAccess, uint32(config.Access))
+	setMask(&params, uapi.PCMHWParamFormat, uint32(config.Format))
+	setMask(&params, uapi.PCMHWParamSubformat, uapi.PCMSubformatStandard)
+	setInterval(&params, uapi.PCMHWParamChannels, uint32(config.Channels))
+	params.RequestMask = ^uint32(0)
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&params)); err != nil {
+		return HardwareSetup{}, fmt.Errorf("alsa pcm: refine fixed hardware parameters: %w", err)
+	}
+	requests := [...]struct {
+		parameter int
+		value     uint32
+		name      string
+	}{
+		{uapi.PCMHWParamRate, uint32(config.Rate), "rate"},
+		{uapi.PCMHWParamPeriodSize, uint32(config.PeriodFrames), "period size"},
+		{uapi.PCMHWParamBufferSize, uint32(config.BufferFrames), "buffer size"},
+	}
+	for _, request := range requests {
+		if err := h.refineNear(&params, request.parameter, request.value); err != nil {
+			return HardwareSetup{}, fmt.Errorf("alsa pcm: negotiate %s near %d: %w", request.name, request.value, err)
+		}
+	}
+	params.RequestMask = ^uint32(0)
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWParams, unsafe.Pointer(&params)); err != nil {
+		return HardwareSetup{}, fmt.Errorf("alsa pcm: configure negotiated hardware: %w", err)
+	}
+	setup := hardwareSetup(params)
+	h.hardware = &setup
+	h.software = nil
+	h.prepared = false
+	return setup, nil
+}
+
+type nearCandidate struct {
+	params uapi.PCMHWParams
+	value  uint32
+	err    error
+}
+
+func (h *Handle) refineNear(params *uapi.PCMHWParams, parameter int, target uint32) error {
+	base := params.Intervals[parameter-uapi.PCMHWParamFirstInterval]
+	minimum, maximum, ok := integerBounds(base)
+	if !ok {
+		return errors.New("hardware parameter has no available values")
+	}
+	lower := nearCandidate{params: *params}
+	if target < minimum {
+		lower.err = syscall.EINVAL
+	} else {
+		setIntervalRange(&lower.params, parameter, minimum, min(target, maximum))
+		lower.params.RequestMask = ^uint32(0)
+		lower.err = h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&lower.params))
+		if lower.err == nil {
+			_, lower.value, ok = integerBounds(lower.params.Intervals[parameter-uapi.PCMHWParamFirstInterval])
+			if !ok {
+				lower.err = syscall.EINVAL
+			}
+		}
+	}
+	upper := nearCandidate{params: *params}
+	if target > maximum {
+		upper.err = syscall.EINVAL
+	} else {
+		setIntervalRange(&upper.params, parameter, max(target, minimum), maximum)
+		upper.params.RequestMask = ^uint32(0)
+		upper.err = h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&upper.params))
+		if upper.err == nil {
+			upper.value, _, ok = integerBounds(upper.params.Intervals[parameter-uapi.PCMHWParamFirstInterval])
+			if !ok {
+				upper.err = syscall.EINVAL
+			}
+		}
+	}
+	chosen, err := nearestCandidate(target, lower, upper)
+	if err != nil {
+		return err
+	}
+	*params = chosen.params
+	setInterval(params, parameter, chosen.value)
+	params.RequestMask = ^uint32(0)
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(params)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func nearestCandidate(target uint32, lower, upper nearCandidate) (nearCandidate, error) {
+	if lower.err != nil && upper.err != nil {
+		return nearCandidate{}, fmt.Errorf("no value near %d: lower: %v; upper: %w", target, lower.err, upper.err)
+	}
+	if lower.err != nil {
+		return upper, nil
+	}
+	if upper.err != nil {
+		return lower, nil
+	}
+	lowerDistance := target - lower.value
+	upperDistance := upper.value - target
+	if lowerDistance <= upperDistance {
+		return lower, nil
+	}
+	return upper, nil
+}
+
+func integerBounds(interval uapi.PCMInterval) (uint32, uint32, bool) {
+	if interval.Flags&uapi.PCMIntervalEmpty != 0 {
+		return 0, 0, false
+	}
+	minimum, maximum := interval.Min, interval.Max
+	if interval.Flags&uapi.PCMIntervalOpenMin != 0 {
+		if minimum == ^uint32(0) {
+			return 0, 0, false
+		}
+		minimum++
+	}
+	if interval.Flags&uapi.PCMIntervalOpenMax != 0 {
+		if maximum == 0 {
+			return 0, 0, false
+		}
+		maximum--
+	}
+	return minimum, maximum, minimum <= maximum
+}
+
 // ConfigureSoftware applies wake, start, stop, silence, and timestamp policy.
 // Hardware parameters must have been configured first.
 func (h *Handle) ConfigureSoftware(config SoftwareConfig) (SoftwareSetup, error) {
@@ -808,6 +940,11 @@ func setMask(p *uapi.PCMHWParams, parameter int, value uint32) {
 func setInterval(p *uapi.PCMHWParams, parameter int, value uint32) {
 	index := parameter - uapi.PCMHWParamFirstInterval
 	p.Intervals[index] = uapi.PCMInterval{Min: value, Max: value, Flags: uapi.PCMIntervalInteger}
+}
+
+func setIntervalRange(p *uapi.PCMHWParams, parameter int, minimum, maximum uint32) {
+	index := parameter - uapi.PCMHWParamFirstInterval
+	p.Intervals[index] = uapi.PCMInterval{Min: minimum, Max: maximum, Flags: uapi.PCMIntervalInteger}
 }
 
 func intervalValue(p uapi.PCMHWParams, parameter int) int {

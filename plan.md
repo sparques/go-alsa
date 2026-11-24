@@ -59,8 +59,10 @@ item does not imply that its phase exit criteria have been met.
     and realtime/monotonic clock selection, available-frame queries, and
     cancellation-aware readiness polling are exposed; strict and automatic
     suspend recovery preserve `ESTRPIPE`; kernel stream link/unlink is exposed
-    with direction and lifecycle validation; broader negotiation and remaining
-    lifecycle operations remain.)
+    with direction and lifecycle validation; near negotiation selects jointly
+    supported rate, period, and buffer sizes while preserving exact
+    access/format/channels; broader negotiation and remaining lifecycle
+    operations remain.)
 - [ ] **Phase 4 — raw control API**
   - [x] Negotiate the control protocol during open and expose typed card info
     with complete component metadata.

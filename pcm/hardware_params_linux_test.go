@@ -3,6 +3,7 @@
 package pcm
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/sparques/go-alsa/internal/uapi"
@@ -28,6 +29,38 @@ func TestHardwareParameterConstruction(t *testing.T) {
 	interval := params.Intervals[uapi.PCMHWParamRate-uapi.PCMHWParamFirstInterval]
 	if interval.Min != 48000 || interval.Max != 48000 || interval.Flags != uapi.PCMIntervalInteger {
 		t.Fatalf("rate interval = %#v", interval)
+	}
+}
+
+func TestIntegerBounds(t *testing.T) {
+	t.Parallel()
+	minimum, maximum, ok := integerBounds(uapi.PCMInterval{
+		Min: 10, Max: 20, Flags: uapi.PCMIntervalInteger | uapi.PCMIntervalOpenMin | uapi.PCMIntervalOpenMax,
+	})
+	if !ok || minimum != 11 || maximum != 19 {
+		t.Fatalf("integerBounds = %d, %d, %t", minimum, maximum, ok)
+	}
+	if _, _, ok := integerBounds(uapi.PCMInterval{Flags: uapi.PCMIntervalEmpty}); ok {
+		t.Fatal("empty interval reported values")
+	}
+}
+
+func TestNearestCandidate(t *testing.T) {
+	t.Parallel()
+	lower := nearCandidate{value: 44100}
+	upper := nearCandidate{value: 48000}
+	chosen, err := nearestCandidate(47000, lower, upper)
+	if err != nil || chosen.value != 48000 {
+		t.Fatalf("nearestCandidate = %d, %v; want 48000", chosen.value, err)
+	}
+	chosen, err = nearestCandidate(46050, lower, upper)
+	if err != nil || chosen.value != 44100 {
+		t.Fatalf("tie nearestCandidate = %d, %v; want lower 44100", chosen.value, err)
+	}
+	lower.err = syscall.EINVAL
+	chosen, err = nearestCandidate(44100, lower, upper)
+	if err != nil || chosen.value != 48000 {
+		t.Fatalf("one-sided nearestCandidate = %d, %v", chosen.value, err)
 	}
 }
 

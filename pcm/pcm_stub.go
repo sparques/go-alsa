@@ -20,6 +20,10 @@ func (*Handle) ConfigureHardware(HardwareConfig) (HardwareSetup, error) {
 	return HardwareSetup{}, alsa.ErrUnsupportedPlatform
 }
 
+func (*Handle) configureHardwareNear(HardwareConfig) (HardwareSetup, error) {
+	return HardwareSetup{}, alsa.ErrUnsupportedPlatform
+}
+
 func (*Handle) capabilities() (Capabilities, error) {
 	return Capabilities{}, alsa.ErrUnsupportedPlatform
 }
