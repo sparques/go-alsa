@@ -416,7 +416,7 @@ func (h *Handle) pollError(revents int16) error {
 func pollStateError(state State, revents int16) error {
 	switch state {
 	case StateXRUN:
-		return ErrXRUN
+		return fmt.Errorf("%w: %w", ErrXRUN, syscall.EPIPE)
 	case StateSuspended:
 		return fmt.Errorf("%w: %w", ErrSuspended, syscall.ESTRPIPE)
 	case StateDisconnected:
@@ -467,12 +467,11 @@ func (h *Handle) drain(ctx context.Context) error {
 			h.markUnprepared()
 			return nil
 		}
-		if errors.Is(err, syscall.EPIPE) {
-			h.mu.Lock()
-			h.underruns++
-			h.prepared = false
-			h.mu.Unlock()
-			return fmt.Errorf("%w: %w", ErrXRUN, err)
+		if retry, recoveryErr := h.recoverTransfer(ctx, err, false); retry || recoveryErr != nil {
+			if recoveryErr != nil {
+				return recoveryErr
+			}
+			continue
 		}
 		if !errors.Is(err, syscall.EAGAIN) {
 			return fmt.Errorf("alsa pcm: drain: %w", err)
@@ -486,12 +485,16 @@ func (h *Handle) drain(ctx context.Context) error {
 		case StateSetup:
 			h.markUnprepared()
 			return nil
-		case StateXRUN:
-			h.mu.Lock()
-			h.underruns++
-			h.prepared = false
-			h.mu.Unlock()
-			return ErrXRUN
+		case StateXRUN, StateSuspended:
+			stateErr := pollStateError(status.State, unix.POLLERR)
+			retry, recoveryErr := h.recoverTransfer(ctx, stateErr, false)
+			if recoveryErr != nil {
+				return recoveryErr
+			}
+			if retry {
+				continue
+			}
+			return stateErr
 		case StateDisconnected:
 			h.markUnprepared()
 			return ErrDisconnected
@@ -504,16 +507,13 @@ func (h *Handle) drain(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if revents&(unix.POLLHUP|unix.POLLNVAL) != 0 {
-			return ErrDisconnected
-		}
-		if revents&unix.POLLERR != 0 {
-			timer := time.NewTimer(time.Millisecond)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return ctx.Err()
-			case <-timer.C:
+		if pollErr := h.pollError(revents); pollErr != nil {
+			retry, recoveryErr := h.recoverTransfer(ctx, pollErr, false)
+			if recoveryErr != nil {
+				return recoveryErr
+			}
+			if !retry {
+				return pollErr
 			}
 		}
 	}
@@ -629,8 +629,14 @@ func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength 
 		if err != nil {
 			return 0, err
 		}
-		if err := h.pollError(revents); err != nil {
-			return 0, err
+		if pollErr := h.pollError(revents); pollErr != nil {
+			retry, recoveryErr := h.recoverTransfer(ctx, pollErr, read)
+			if recoveryErr != nil {
+				return 0, recoveryErr
+			}
+			if !retry {
+				return 0, pollErr
+			}
 		}
 	}
 }
@@ -714,8 +720,14 @@ func (h *Handle) transferNonInterleavedBytes(ctx context.Context, channels [][]b
 		if err != nil {
 			return 0, err
 		}
-		if err := h.pollError(revents); err != nil {
-			return 0, err
+		if pollErr := h.pollError(revents); pollErr != nil {
+			retry, recoveryErr := h.recoverTransfer(ctx, pollErr, read)
+			if recoveryErr != nil {
+				return 0, recoveryErr
+			}
+			if !retry {
+				return 0, pollErr
+			}
 		}
 	}
 }

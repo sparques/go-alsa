@@ -58,7 +58,8 @@ item does not imply that its phase exit criteria have been met.
     transfers remain available for interleaved S16_LE; software timestamp mode
     and realtime/monotonic clock selection, available-frame queries, and
     cancellation-aware readiness polling are exposed; strict and automatic
-    suspend recovery preserve `ESTRPIPE`; kernel stream link/unlink is exposed
+    suspend recovery preserve `ESTRPIPE` across direct ioctl, readiness-poll,
+    and drain paths; kernel stream link/unlink is exposed
     with direction and lifecycle validation; near negotiation selects jointly
     supported rate, period, and buffer sizes while preserving exact
     access/format/channels; broader negotiation and remaining lifecycle

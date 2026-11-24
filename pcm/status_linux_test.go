@@ -63,6 +63,9 @@ func TestPollStateErrors(t *testing.T) {
 	if err := pollStateError(StateSuspended, 8); !errors.Is(err, syscall.ESTRPIPE) {
 		t.Fatalf("suspended error = %v; want ESTRPIPE", err)
 	}
+	if err := pollStateError(StateXRUN, 8); !errors.Is(err, syscall.EPIPE) {
+		t.Fatalf("xrun error = %v; want EPIPE", err)
+	}
 	if err := pollStateError(StateRunning, 8); err == nil {
 		t.Fatal("running stream POLLERR was ignored")
 	}
