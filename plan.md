@@ -70,8 +70,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Group standard playback/capture switch and volume controls by base name
     and index; provide typed reads and validated writes.
   - [x] Convert dB scale, min/max, and range TLVs to hundredths-of-dB values.
+  - [x] Add bounded, step-aware normalized raw-volume APIs.
   - [ ] Add channel identities, joined/exclusive semantics, enum elements,
-    normalized volume APIs, caching/events, and broader hardware fixtures.
+    caching/events, and broader hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**

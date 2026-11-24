@@ -1,6 +1,7 @@
 package mixer
 
 import (
+	"math"
 	"testing"
 
 	"github.com/sparques/go-alsa/control"
@@ -23,6 +24,39 @@ func TestSplitSimpleName(t *testing.T) {
 		if base != test.base || kind != test.kind || ok != test.ok {
 			t.Errorf("splitSimpleName(%q) = %q, %q, %v; want %q, %q, %v",
 				test.name, base, kind, ok, test.base, test.kind, test.ok)
+		}
+	}
+}
+
+func TestNormalizeRaw(t *testing.T) {
+	integer := control.IntegerRange{Minimum: -10, Maximum: 30, Step: 4}
+	for _, test := range []struct {
+		raw  int64
+		want float64
+	}{{-10, 0}, {10, 0.5}, {30, 1}} {
+		if got := normalizeRaw(test.raw, integer); math.Abs(got-test.want) > 1e-12 {
+			t.Errorf("normalizeRaw(%d) = %v; want %v", test.raw, got, test.want)
+		}
+	}
+}
+
+func TestDenormalizeRaw(t *testing.T) {
+	integer := control.IntegerRange{Minimum: 0, Maximum: 10, Step: 2}
+	for _, test := range []struct {
+		value float64
+		want  int64
+	}{{0, 0}, {0.24, 2}, {0.5, 6}, {1, 10}} {
+		got, err := denormalizeRaw(test.value, integer)
+		if err != nil {
+			t.Fatalf("denormalizeRaw(%v): %v", test.value, err)
+		}
+		if got != test.want {
+			t.Errorf("denormalizeRaw(%v) = %d; want %d", test.value, got, test.want)
+		}
+	}
+	for _, value := range []float64{-0.01, 1.01, math.NaN(), math.Inf(1)} {
+		if _, err := denormalizeRaw(value, integer); err == nil {
+			t.Errorf("denormalizeRaw(%v) unexpectedly succeeded", value)
 		}
 	}
 }

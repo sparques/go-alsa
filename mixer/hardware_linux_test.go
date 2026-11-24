@@ -56,6 +56,9 @@ func TestMixerHardware(t *testing.T) {
 			if err := element.SetPlaybackVolume(volume.Values); err != nil {
 				t.Fatal(err)
 			}
+			if err := element.SetPlaybackVolumeNormalized(volume.Normalized); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if element.HasCaptureVolume() {
 			volume, err := element.CaptureVolume()
@@ -64,6 +67,9 @@ func TestMixerHardware(t *testing.T) {
 			}
 			t.Logf("%s capture raw=%v range=[%d,%d] dB=%v", element.Name, volume.Values, volume.Minimum, volume.Maximum, volume.DB)
 			if err := element.SetCaptureVolume(volume.Values); err != nil {
+				t.Fatal(err)
+			}
+			if err := element.SetCaptureVolumeNormalized(volume.Normalized); err != nil {
 				t.Fatal(err)
 			}
 		}

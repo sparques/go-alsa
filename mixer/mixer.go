@@ -2,6 +2,7 @@ package mixer
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -127,6 +128,8 @@ type Volume struct {
 	Maximum int64
 	Step    int64
 	DB      []int32
+	// Normalized contains Values mapped linearly from the raw range to 0..1.
+	Normalized []float64
 }
 
 func (e *Element) PlaybackSwitch() ([]bool, error) { return e.readSwitch(e.playbackSwitch) }
@@ -144,6 +147,18 @@ func (e *Element) SetPlaybackVolume(values []int64) error {
 }
 func (e *Element) SetCaptureVolume(values []int64) error {
 	return e.writeVolume(e.captureVolume, values)
+}
+
+// SetPlaybackVolumeNormalized sets each playback channel on a linear raw-value
+// scale from 0 (minimum) through 1 (maximum), rounded to the nearest valid step.
+func (e *Element) SetPlaybackVolumeNormalized(values []float64) error {
+	return e.writeNormalizedVolume(e.playbackVolume, values)
+}
+
+// SetCaptureVolumeNormalized sets each capture channel on a linear raw-value
+// scale from 0 (minimum) through 1 (maximum), rounded to the nearest valid step.
+func (e *Element) SetCaptureVolumeNormalized(values []float64) error {
+	return e.writeNormalizedVolume(e.captureVolume, values)
 }
 
 func (e *Element) readSwitch(item *binding) ([]bool, error) {
@@ -173,6 +188,10 @@ func (e *Element) readVolume(item *binding) (Volume, error) {
 		return Volume{}, err
 	}
 	result := Volume{Values: value.Integers, Minimum: item.info.Integer.Minimum, Maximum: item.info.Integer.Maximum, Step: item.info.Integer.Step}
+	result.Normalized = make([]float64, len(result.Values))
+	for index, raw := range result.Values {
+		result.Normalized[index] = normalizeRaw(raw, item.info.Integer)
+	}
 	if item.info.Access.TLVReadable() {
 		tlv, err := e.h.control.ReadDecodedTLV(item.id, 4096)
 		if err != nil {
@@ -196,6 +215,52 @@ func (e *Element) writeVolume(item *binding, values []int64) error {
 		return fmt.Errorf("alsa mixer: %s has no requested volume", e.Name)
 	}
 	return e.h.control.Write(control.ElementValue{ID: item.id, Type: item.info.Type, Integers: append([]int64(nil), values...)})
+}
+
+func (e *Element) writeNormalizedVolume(item *binding, values []float64) error {
+	if item == nil {
+		return fmt.Errorf("alsa mixer: %s has no requested volume", e.Name)
+	}
+	raw := make([]int64, len(values))
+	for index, value := range values {
+		converted, err := denormalizeRaw(value, item.info.Integer)
+		if err != nil {
+			return fmt.Errorf("alsa mixer: normalized channel %d: %w", index, err)
+		}
+		raw[index] = converted
+	}
+	return e.writeVolume(item, raw)
+}
+
+func normalizeRaw(raw int64, integer control.IntegerRange) float64 {
+	if integer.Maximum <= integer.Minimum {
+		return 0
+	}
+	value := (float64(raw) - float64(integer.Minimum)) / (float64(integer.Maximum) - float64(integer.Minimum))
+	return math.Max(0, math.Min(1, value))
+}
+
+func denormalizeRaw(value float64, integer control.IntegerRange) (int64, error) {
+	if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1 {
+		return 0, fmt.Errorf("value %v is outside 0..1", value)
+	}
+	if integer.Maximum < integer.Minimum {
+		return 0, fmt.Errorf("invalid integer range %+v", integer)
+	}
+	if integer.Maximum == integer.Minimum {
+		return integer.Minimum, nil
+	}
+	step := integer.Step
+	if step <= 0 {
+		step = 1
+	}
+	span := float64(integer.Maximum) - float64(integer.Minimum)
+	steps := math.Round(value * (span / float64(step)))
+	raw := integer.Minimum + int64(steps)*step
+	if raw > integer.Maximum {
+		raw = integer.Maximum
+	}
+	return raw, nil
 }
 
 func rawToDB(raw int64, integer control.IntegerRange, tlv control.TLV) (int32, bool) {
