@@ -3,12 +3,28 @@
 package pcm
 
 import (
+	"context"
 	"errors"
 	"syscall"
 	"testing"
 
 	"github.com/sparques/go-alsa/internal/uapi"
 )
+
+func TestStrictSuspendRecovery(t *testing.T) {
+	t.Parallel()
+	handle := &Handle{prepared: true, recovery: RecoveryStrict}
+	retry, err := handle.recoverTransfer(context.Background(), syscall.ESTRPIPE, false)
+	if retry || !errors.Is(err, ErrSuspended) || !errors.Is(err, syscall.ESTRPIPE) {
+		t.Fatalf("recoverTransfer = retry %t, error %v", retry, err)
+	}
+	if handle.prepared {
+		t.Fatal("suspended handle remained marked prepared")
+	}
+	if got := handle.Stats().Suspensions; got != 1 {
+		t.Fatalf("suspensions = %d; want 1", got)
+	}
+}
 
 func TestPollStateErrors(t *testing.T) {
 	t.Parallel()
@@ -17,13 +33,16 @@ func TestPollStateErrors(t *testing.T) {
 		want  error
 	}{
 		{StateXRUN, ErrXRUN},
-		{StateSuspended, syscall.ESTRPIPE},
+		{StateSuspended, ErrSuspended},
 		{StateDisconnected, ErrDisconnected},
 	}
 	for _, test := range tests {
 		if err := pollStateError(test.state, 8); !errors.Is(err, test.want) {
 			t.Errorf("pollStateError(%s) = %v; want %v", test.state, err, test.want)
 		}
+	}
+	if err := pollStateError(StateSuspended, 8); !errors.Is(err, syscall.ESTRPIPE) {
+		t.Fatalf("suspended error = %v; want ESTRPIPE", err)
 	}
 	if err := pollStateError(StateRunning, 8); err == nil {
 		t.Fatal("running stream POLLERR was ignored")

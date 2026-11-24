@@ -57,8 +57,9 @@ item does not imply that its phase exit criteria have been met.
     layouts with interleaved and non-interleaved RW access, while typed
     transfers remain available for interleaved S16_LE; software timestamp mode
     and realtime/monotonic clock selection, available-frame queries, and
-    cancellation-aware readiness polling are exposed; broader negotiation and
-    remaining lifecycle operations remain.)
+    cancellation-aware readiness polling are exposed; strict and automatic
+    suspend recovery preserve `ESTRPIPE`; broader negotiation and remaining
+    lifecycle operations remain.)
 - [ ] **Phase 4 — raw control API**
   - [x] Negotiate the control protocol during open and expose typed card info
     with complete component metadata.

@@ -286,7 +286,7 @@ func pollStateError(state State, revents int16) error {
 	case StateXRUN:
 		return ErrXRUN
 	case StateSuspended:
-		return fmt.Errorf("alsa pcm: suspended: %w", syscall.ESTRPIPE)
+		return fmt.Errorf("%w: %w", ErrSuspended, syscall.ESTRPIPE)
 	case StateDisconnected:
 		return ErrDisconnected
 	default:
@@ -484,21 +484,9 @@ func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength 
 			}
 			return int(transfer.Result), nil
 		}
-		if errors.Is(err, syscall.EPIPE) {
-			h.mu.Lock()
-			if read {
-				h.overruns++
-			} else {
-				h.underruns++
-			}
-			policy := h.recovery
-			h.prepared = false
-			h.mu.Unlock()
-			if policy == RecoveryStrict {
-				return 0, fmt.Errorf("%w: %w", ErrXRUN, err)
-			}
-			if err := h.recoverXRUN(read); err != nil {
-				return 0, err
+		if retry, recoveryErr := h.recoverTransfer(ctx, err, read); retry || recoveryErr != nil {
+			if recoveryErr != nil {
+				return 0, recoveryErr
 			}
 			continue
 		}
@@ -581,21 +569,9 @@ func (h *Handle) transferNonInterleavedBytes(ctx context.Context, channels [][]b
 			}
 			return int(transfer.Result), nil
 		}
-		if errors.Is(err, syscall.EPIPE) {
-			h.mu.Lock()
-			if read {
-				h.overruns++
-			} else {
-				h.underruns++
-			}
-			policy := h.recovery
-			h.prepared = false
-			h.mu.Unlock()
-			if policy == RecoveryStrict {
-				return 0, fmt.Errorf("%w: %w", ErrXRUN, err)
-			}
-			if err := h.recoverXRUN(read); err != nil {
-				return 0, err
+		if retry, recoveryErr := h.recoverTransfer(ctx, err, read); retry || recoveryErr != nil {
+			if recoveryErr != nil {
+				return 0, recoveryErr
 			}
 			continue
 		}
@@ -613,19 +589,75 @@ func (h *Handle) transferNonInterleavedBytes(ctx context.Context, channels [][]b
 }
 
 func (h *Handle) recoverXRUN(capture bool) error {
+	return h.recoverPrepare(capture, "xrun")
+}
+
+func (h *Handle) recoverTransfer(ctx context.Context, transferErr error, capture bool) (bool, error) {
+	if !errors.Is(transferErr, syscall.EPIPE) && !errors.Is(transferErr, syscall.ESTRPIPE) {
+		return false, nil
+	}
+	h.mu.Lock()
+	policy := h.recovery
+	h.prepared = false
+	if errors.Is(transferErr, syscall.EPIPE) {
+		if capture {
+			h.overruns++
+		} else {
+			h.underruns++
+		}
+	} else {
+		h.suspends++
+	}
+	h.mu.Unlock()
+
+	if errors.Is(transferErr, syscall.EPIPE) {
+		if policy == RecoveryStrict {
+			return false, fmt.Errorf("%w: %w", ErrXRUN, transferErr)
+		}
+		return true, h.recoverXRUN(capture)
+	}
+	if policy == RecoveryStrict {
+		return false, fmt.Errorf("%w: %w", ErrSuspended, transferErr)
+	}
+	return true, h.recoverSuspend(ctx, capture)
+}
+
+func (h *Handle) recoverSuspend(ctx context.Context, capture bool) error {
+	for {
+		err := h.core.fd.Ioctl(uapi.PCMIoctlResume, nil)
+		if err == nil {
+			h.mu.Lock()
+			h.prepared = true
+			h.mu.Unlock()
+			return nil
+		}
+		if !errors.Is(err, syscall.EAGAIN) {
+			return h.recoverPrepare(capture, "suspend")
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func (h *Handle) recoverPrepare(capture bool, reason string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.hardware == nil || h.software == nil {
 		return fmt.Errorf("%w: cannot recover an unconfigured stream", ErrState)
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlPrepare, nil); err != nil {
-		return fmt.Errorf("alsa pcm: recover xrun: prepare: %w", err)
+		return fmt.Errorf("alsa pcm: recover %s: prepare: %w", reason, err)
 	}
 	h.prepared = true
 	if capture {
 		if err := h.core.fd.Ioctl(uapi.PCMIoctlStart, nil); err != nil {
 			h.prepared = false
-			return fmt.Errorf("alsa pcm: recover xrun: start capture: %w", err)
+			return fmt.Errorf("alsa pcm: recover %s: start capture: %w", reason, err)
 		}
 	}
 	return nil

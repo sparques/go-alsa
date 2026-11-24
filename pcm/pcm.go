@@ -19,6 +19,9 @@ var (
 	// ErrXRUN reports a playback underrun or capture overrun. Call Prepare to
 	// recover before transferring more frames.
 	ErrXRUN = errors.New("alsa pcm: xrun")
+	// ErrSuspended reports a stream suspended by the system. Resume may recover
+	// it; Prepare is the fallback when the driver cannot resume in place.
+	ErrSuspended = errors.New("alsa pcm: suspended")
 	// ErrDisconnected reports hardware removal or a disconnected PCM stream.
 	ErrDisconnected = alsa.ErrDisconnected
 )
@@ -48,23 +51,27 @@ type Handle struct {
 	recovery  RecoveryPolicy
 	overruns  uint64
 	underruns uint64
+	suspends  uint64
 }
 
-// RecoveryPolicy controls whether transfers report XRUNs or recover and retry.
+// RecoveryPolicy controls whether transfers report XRUN/suspend failures or
+// recover and retry.
 type RecoveryPolicy uint8
 
 const (
-	// RecoveryStrict returns ErrXRUN and leaves the stream requiring Prepare.
+	// RecoveryStrict returns ErrXRUN or ErrSuspended and leaves recovery to the
+	// caller.
 	RecoveryStrict RecoveryPolicy = iota
-	// RecoveryAutomatic prepares the stream, restarts capture when needed, and
-	// retries the interrupted transfer.
+	// RecoveryAutomatic prepares after XRUN, attempts resume after suspend,
+	// restarts capture when needed, and retries the interrupted transfer.
 	RecoveryAutomatic
 )
 
-// Stats counts capture overruns and playback underruns observed by this handle.
+// Stats counts transfer disruptions observed by this handle.
 type Stats struct {
-	Overruns  uint64
-	Underruns uint64
+	Overruns    uint64
+	Underruns   uint64
+	Suspensions uint64
 }
 
 // SetRecoveryPolicy changes transfer recovery behavior. Strict is the default.
@@ -82,7 +89,7 @@ func (h *Handle) SetRecoveryPolicy(policy RecoveryPolicy) error {
 func (h *Handle) Stats() Stats {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return Stats{Overruns: h.overruns, Underruns: h.underruns}
+	return Stats{Overruns: h.overruns, Underruns: h.underruns, Suspensions: h.suspends}
 }
 
 // Info returns metadata captured when the handle was opened.
