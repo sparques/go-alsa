@@ -1,3 +1,5 @@
+//go:build linux && (amd64 || arm64)
+
 // Command abi-probe verifies checked-in Go ALSA layouts against the Linux UAPI
 // headers installed on the maintainer's machine. Production builds do not use
 // this command and remain independent of cgo and C headers.

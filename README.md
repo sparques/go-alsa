@@ -9,10 +9,10 @@ v1.0.
 
 ## Current status
 
-The package can enumerate ALSA control devices, retrieve kernel card metadata,
-and enumerate playback/capture PCM devices on Linux amd64 and arm64. PCM
-streaming, controls, mixers, ALSA configuration evaluation, and software
-plugins are not implemented yet.
+The package can enumerate ALSA cards and playback/capture PCM devices on Linux
+amd64 and arm64. It also provides direct-hardware PCM streaming, typed raw
+control access, control events and TLVs, and an initial simple-mixer layer.
+ALSA configuration evaluation and software plugins are not implemented yet.
 
 ```go
 cards, err := alsa.Cards()
@@ -37,6 +37,32 @@ if err != nil {
     log.Fatal(err)
 }
 fmt.Println(device.PCM.Path)
+```
+
+Conventional kernel mixer controls are grouped by their Playback/Capture
+Switch/Volume suffixes. Raw values and decoded hundredths-of-a-decibel values
+are both available:
+
+```go
+handle, err := mixer.Open("3")
+if err != nil {
+    log.Fatal(err)
+}
+defer handle.Close()
+
+elements, err := handle.Elements()
+if err != nil {
+    log.Fatal(err)
+}
+for _, element := range elements {
+    if element.HasPlaybackVolume() {
+        volume, err := element.PlaybackVolume()
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Printf("%s: raw=%v dB=%v\n", element.Name, volume.Values, volume.DB)
+    }
+}
 ```
 
 Hardware tests are opt-in. For a direct PCM with its output cabled to its input,

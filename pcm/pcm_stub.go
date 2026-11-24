@@ -8,7 +8,7 @@ import (
 	alsa "github.com/sparques/go-alsa"
 )
 
-type handleCore struct{}
+type handleCore struct{ protocol uint32 }
 
 func OpenHardware(string, alsa.Stream) (*Handle, error) {
 	return nil, alsa.ErrUnsupportedPlatform

@@ -67,6 +67,11 @@ item does not imply that its phase exit criteria have been met.
   - [x] Implement cancellation-aware ordered control event subscriptions.
   - [ ] Implement remaining raw control operations and event stress tests.
 - [ ] **Phase 5 — simple mixer layer**
+  - [x] Group standard playback/capture switch and volume controls by base name
+    and index; provide typed reads and validated writes.
+  - [x] Convert dB scale, min/max, and range TLVs to hundredths-of-dB values.
+  - [ ] Add channel identities, joined/exclusive semantics, enum elements,
+    normalized volume APIs, caching/events, and broader hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
