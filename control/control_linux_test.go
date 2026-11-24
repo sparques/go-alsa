@@ -12,6 +12,7 @@ import (
 	"time"
 
 	alsa "github.com/sparques/go-alsa"
+	"github.com/sparques/go-alsa/internal/uapi"
 )
 
 func TestResolveNumericCard(t *testing.T) {
@@ -227,4 +228,28 @@ func TestControlHardwareCardComponents(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("components=%q complete=%v", components, complete)
+}
+
+func TestControlHardwareCardInfoAndProtocol(t *testing.T) {
+	selector := os.Getenv("GO_ALSA_TEST_CONTROL")
+	if selector == "" {
+		t.Skip("set GO_ALSA_TEST_CONTROL to a card number or ID")
+	}
+	handle, err := Open(selector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	major, minor, micro := handle.ProtocolVersion()
+	if major != uapi.ControlProtocolVersion>>16 {
+		t.Fatalf("protocol = %d.%d.%d", major, minor, micro)
+	}
+	info, err := handle.CardInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Number < 0 || info.ID == "" || info.Name == "" {
+		t.Fatalf("incomplete card info: %+v", info)
+	}
+	t.Logf("protocol=%d.%d.%d card=%+v", major, minor, micro, info)
 }

@@ -2,9 +2,25 @@ package control
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 )
+
+// ErrProtocol reports an incompatible kernel control protocol.
+var ErrProtocol = errors.New("alsa control: incompatible kernel protocol")
+
+// CardInfo describes the card owning an open control handle.
+type CardInfo struct {
+	Number             int
+	ID                 string
+	Driver             string
+	Name               string
+	LongName           string
+	MixerName          string
+	Components         string
+	ComponentsComplete bool
+}
 
 // Interface identifies the kernel subsystem that owns a control element.
 type Interface int32
@@ -164,6 +180,15 @@ type Handle struct {
 	core    handleCore
 	eventMu sync.Mutex
 }
+
+// ProtocolVersion returns the negotiated kernel control protocol version.
+func (h *Handle) ProtocolVersion() (major, minor, micro int) {
+	version := h.core.protocol
+	return int(version >> 16), int(version >> 8 & 0xff), int(version & 0xff)
+}
+
+// CardInfo returns typed metadata for the card owning this handle.
+func (h *Handle) CardInfo() (CardInfo, error) { return h.cardInfo() }
 
 // Close releases the control descriptor. It is idempotent.
 func (h *Handle) Close() error { return h.core.close() }

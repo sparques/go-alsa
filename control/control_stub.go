@@ -8,7 +8,7 @@ import (
 	alsa "github.com/sparques/go-alsa"
 )
 
-type handleCore struct{}
+type handleCore struct{ protocol uint32 }
 
 func Open(string) (*Handle, error)             { return nil, alsa.ErrUnsupportedPlatform }
 func (*handleCore) close() error               { return nil }
@@ -16,6 +16,7 @@ func (*Handle) Elements() ([]ElementID, error) { return nil, alsa.ErrUnsupported
 func (*Handle) Info(ElementID) (ElementInfo, error) {
 	return ElementInfo{}, alsa.ErrUnsupportedPlatform
 }
+func (*Handle) cardInfo() (CardInfo, error) { return CardInfo{}, alsa.ErrUnsupportedPlatform }
 func (*Handle) EnumeratedItem(ElementID, uint32) (ElementInfo, error) {
 	return ElementInfo{}, alsa.ErrUnsupportedPlatform
 }

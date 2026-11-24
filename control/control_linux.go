@@ -24,7 +24,10 @@ const maximumElements = 1 << 20
 const maximumTLVBytes = 1 << 20
 const maximumEnumNamesBytes = 1 << 16
 
-type handleCore struct{ fd *sysio.FD }
+type handleCore struct {
+	fd       *sysio.FD
+	protocol uint32
+}
 
 // Open opens a card control by numeric card or stable card ID. Accepted forms
 // include "3", "Device", "hw:3", and "hw:CARD=Device".
@@ -38,7 +41,32 @@ func Open(selector string) (*Handle, error) {
 	if err != nil {
 		return nil, &alsa.DeviceError{Op: "open control", Device: selector, Err: err}
 	}
-	return &Handle{core: handleCore{fd: fd}}, nil
+	var protocol uint32
+	if err := fd.Ioctl(uapi.ControlIoctlProtocolVersion, unsafe.Pointer(&protocol)); err != nil {
+		_ = fd.Close()
+		return nil, &alsa.DeviceError{Op: "query control protocol", Device: selector, Err: err}
+	}
+	if protocol>>16 != uapi.ControlProtocolVersion>>16 {
+		_ = fd.Close()
+		return nil, &alsa.DeviceError{Op: "query control protocol", Device: selector, Err: fmt.Errorf("%w: kernel %#x, supported major %d", ErrProtocol, protocol, uapi.ControlProtocolVersion>>16)}
+	}
+	return &Handle{core: handleCore{fd: fd, protocol: protocol}}, nil
+}
+
+func (h *Handle) cardInfo() (CardInfo, error) {
+	var raw uapi.ControlCardInfo
+	if err := h.core.fd.Ioctl(uapi.ControlIoctlCardInfo, unsafe.Pointer(&raw)); err != nil {
+		return CardInfo{}, fmt.Errorf("alsa control: card info: %w", err)
+	}
+	components, complete, err := h.cardComponents(maximumTLVBytes)
+	if err != nil {
+		return CardInfo{}, err
+	}
+	return CardInfo{
+		Number: int(raw.Card), ID: cString(raw.ID[:]), Driver: cString(raw.Driver[:]),
+		Name: cString(raw.Name[:]), LongName: cString(raw.LongName[:]), MixerName: cString(raw.MixerName[:]),
+		Components: components, ComponentsComplete: complete,
+	}, nil
 }
 
 func resolveCard(selector string) (int, error) {
