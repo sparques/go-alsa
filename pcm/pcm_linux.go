@@ -110,7 +110,7 @@ func (h *Handle) ConfigureHardware(config HardwareConfig) (HardwareSetup, error)
 	params.RequestMask = ^uint32(0)
 
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWParams, unsafe.Pointer(&params)); err != nil {
-		return HardwareSetup{}, fmt.Errorf("alsa pcm: configure hardware: %w", err)
+		return HardwareSetup{}, operationError("configure hardware", err)
 	}
 	setup := hardwareSetup(params)
 	h.hardware = &setup
@@ -133,7 +133,7 @@ func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	setInterval(&params, uapi.PCMHWParamChannels, uint32(config.Channels))
 	params.RequestMask = ^uint32(0)
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&params)); err != nil {
-		return HardwareSetup{}, fmt.Errorf("alsa pcm: refine fixed hardware parameters: %w", err)
+		return HardwareSetup{}, operationError("refine fixed hardware parameters", err)
 	}
 	requests := [...]struct {
 		parameter int
@@ -146,12 +146,12 @@ func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	}
 	for _, request := range requests {
 		if err := h.refineNear(&params, request.parameter, request.value); err != nil {
-			return HardwareSetup{}, fmt.Errorf("alsa pcm: negotiate %s near %d: %w", request.name, request.value, err)
+			return HardwareSetup{}, operationError(fmt.Sprintf("negotiate %s near %d", request.name, request.value), err)
 		}
 	}
 	params.RequestMask = ^uint32(0)
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWParams, unsafe.Pointer(&params)); err != nil {
-		return HardwareSetup{}, fmt.Errorf("alsa pcm: configure negotiated hardware: %w", err)
+		return HardwareSetup{}, operationError("configure negotiated hardware", err)
 	}
 	setup := hardwareSetup(params)
 	h.hardware = &setup
@@ -264,7 +264,7 @@ func (h *Handle) ConfigureSoftware(config SoftwareConfig) (SoftwareSetup, error)
 	}
 	params := softwareParams(config, *h.hardware, uint32(h.core.protocol))
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlSWParams, unsafe.Pointer(&params)); err != nil {
-		return SoftwareSetup{}, fmt.Errorf("alsa pcm: configure software: %w", err)
+		return SoftwareSetup{}, operationError("configure software", err)
 	}
 	accepted := SoftwareConfig{
 		AvailableMinimum: int(params.AvailableMinimum),
@@ -317,7 +317,7 @@ func (h *Handle) Prepare() error {
 		return fmt.Errorf("%w: configure hardware and software before prepare", ErrState)
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlPrepare, nil); err != nil {
-		return fmt.Errorf("alsa pcm: prepare: %w", err)
+		return operationError("prepare", err)
 	}
 	h.prepared = true
 	return nil
@@ -330,7 +330,7 @@ func (h *Handle) start() error {
 		return fmt.Errorf("%w: prepare before start", ErrState)
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlStart, nil); err != nil {
-		return fmt.Errorf("alsa pcm: start: %w", err)
+		return operationError("start", err)
 	}
 	return nil
 }
@@ -342,7 +342,7 @@ func (h *Handle) drop() error {
 		return nil
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlDrop, nil); err != nil {
-		return fmt.Errorf("alsa pcm: drop: %w", err)
+		return operationError("drop", err)
 	}
 	h.prepared = false
 	return nil
@@ -351,7 +351,7 @@ func (h *Handle) drop() error {
 func (h *Handle) status() (Status, error) {
 	var raw uapi.PCMStatus
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlStatus, unsafe.Pointer(&raw)); err != nil {
-		return Status{}, fmt.Errorf("alsa pcm: status: %w", err)
+		return Status{}, operationError("status", err)
 	}
 	return statusFromUAPI(raw), nil
 }
@@ -359,7 +359,7 @@ func (h *Handle) status() (Status, error) {
 func (h *Handle) delay() (int64, error) {
 	var frames int64
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlDelay, unsafe.Pointer(&frames)); err != nil {
-		return 0, fmt.Errorf("alsa pcm: delay: %w", err)
+		return 0, operationError("delay", err)
 	}
 	return frames, nil
 }
@@ -416,7 +416,7 @@ func (h *Handle) pollError(revents int16) error {
 	}
 	status, err := h.status()
 	if err != nil {
-		return fmt.Errorf("alsa pcm: poll error: %w", err)
+		return operationError("poll error", err)
 	}
 	return pollStateError(status.State, revents)
 }
@@ -482,7 +482,7 @@ func (h *Handle) drain(ctx context.Context) error {
 			continue
 		}
 		if !errors.Is(err, syscall.EAGAIN) {
-			return fmt.Errorf("alsa pcm: drain: %w", err)
+			return operationError("drain", err)
 		}
 
 		status, err := h.status()
@@ -540,7 +540,7 @@ func (h *Handle) freeHardware() error {
 		return nil
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWFree, nil); err != nil {
-		return fmt.Errorf("alsa pcm: free hardware parameters: %w", err)
+		return operationError("free hardware parameters", err)
 	}
 	h.hardware = nil
 	h.software = nil
@@ -631,7 +631,7 @@ func (h *Handle) transferBuffer(ctx context.Context, buffer uintptr, byteLength 
 			continue
 		}
 		if !errors.Is(err, syscall.EAGAIN) {
-			return 0, fmt.Errorf("alsa pcm: transfer: %w", err)
+			return 0, operationError("transfer", err)
 		}
 		revents, err := h.core.fd.Wait(ctx, events)
 		if err != nil {
@@ -722,7 +722,7 @@ func (h *Handle) transferNonInterleavedBytes(ctx context.Context, channels [][]b
 			continue
 		}
 		if !errors.Is(err, syscall.EAGAIN) {
-			return 0, fmt.Errorf("alsa pcm: transfer: %w", err)
+			return 0, operationError("transfer", err)
 		}
 		revents, err := h.core.fd.Wait(ctx, events)
 		if err != nil {
@@ -803,13 +803,13 @@ func (h *Handle) recoverPrepare(capture bool, reason string) error {
 		return fmt.Errorf("%w: cannot recover an unconfigured stream", ErrState)
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlPrepare, nil); err != nil {
-		return fmt.Errorf("alsa pcm: recover %s: prepare: %w", reason, err)
+		return operationError(fmt.Sprintf("recover %s: prepare", reason), err)
 	}
 	h.prepared = true
 	if capture {
 		if err := h.core.fd.Ioctl(uapi.PCMIoctlStart, nil); err != nil {
 			h.prepared = false
-			return fmt.Errorf("alsa pcm: recover %s: start capture: %w", reason, err)
+			return operationError(fmt.Sprintf("recover %s: start capture", reason), err)
 		}
 	}
 	return nil
@@ -883,7 +883,7 @@ func (h *Handle) capabilities() (Capabilities, error) {
 	params := anyHardwareParams()
 	params.RequestMask = ^uint32(0)
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&params)); err != nil {
-		return Capabilities{}, fmt.Errorf("alsa pcm: refine hardware capabilities: %w", err)
+		return Capabilities{}, operationError("refine hardware capabilities", err)
 	}
 	return capabilitiesFromParams(params), nil
 }
@@ -997,7 +997,7 @@ func (h *Handle) reset() error {
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlReset, nil); err != nil {
-		return fmt.Errorf("alsa pcm: reset: %w", err)
+		return operationError("reset", err)
 	}
 	return nil
 }
@@ -1023,7 +1023,7 @@ func (h *Handle) pause(paused bool) error {
 		value = 1
 	}
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlPause, unsafe.Pointer(&value)); err != nil {
-		return fmt.Errorf("alsa pcm: pause: %w", err)
+		return operationError("pause", err)
 	}
 	return nil
 }
@@ -1039,7 +1039,7 @@ func (h *Handle) resume() error {
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlResume, nil); err != nil {
-		return fmt.Errorf("alsa pcm: resume: %w", err)
+		return operationError("resume", err)
 	}
 	return nil
 }
@@ -1060,7 +1060,7 @@ func (h *Handle) moveApplicationPointer(request uintptr, frames uint64, operatio
 	defer h.ioMu.Unlock()
 	actual := frames
 	if err := h.core.fd.Ioctl(request, unsafe.Pointer(&actual)); err != nil {
-		return 0, fmt.Errorf("alsa pcm: %s: %w", operation, err)
+		return 0, operationError(operation, err)
 	}
 	return actual, nil
 }
@@ -1072,7 +1072,7 @@ func (h *Handle) syncHardware() error {
 	h.ioMu.Lock()
 	defer h.ioMu.Unlock()
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWSync, nil); err != nil {
-		return fmt.Errorf("alsa pcm: synchronize hardware pointer: %w", err)
+		return operationError("synchronize hardware pointer", err)
 	}
 	return nil
 }
@@ -1110,7 +1110,7 @@ func (h *Handle) link(peer *Handle) error {
 	return peer.core.fd.WithNumber(func(number int) error {
 		peerFD := int32(number)
 		if err := h.core.fd.Ioctl(uapi.PCMIoctlLink, unsafe.Pointer(&peerFD)); err != nil {
-			return fmt.Errorf("alsa pcm: link: %w", err)
+			return operationError("link", err)
 		}
 		return nil
 	})
@@ -1118,9 +1118,16 @@ func (h *Handle) link(peer *Handle) error {
 
 func (h *Handle) unlink() error {
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlUnlink, nil); err != nil {
-		return fmt.Errorf("alsa pcm: unlink: %w", err)
+		return operationError("unlink", err)
 	}
 	return nil
+}
+
+func operationError(operation string, err error) error {
+	if errors.Is(err, syscall.ENODEV) || errors.Is(err, syscall.ENXIO) {
+		return fmt.Errorf("alsa pcm: %s: %w: %w", operation, ErrDisconnected, err)
+	}
+	return fmt.Errorf("alsa pcm: %s: %w", operation, err)
 }
 
 func singleMaskValue(p uapi.PCMHWParams, parameter int) int {

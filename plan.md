@@ -61,7 +61,8 @@ item does not imply that its phase exit criteria have been met.
     suspend recovery preserve `ESTRPIPE` across direct ioctl, readiness-poll,
     and drain paths; available-frame hardware timestamps come from one status
     snapshot; reset/pause/resume/pointer/sync operations validate configuration
-    and pause/resume capabilities; kernel stream link/unlink is exposed
+    and pause/resume capabilities; runtime `ENODEV`/`ENXIO` failures preserve
+    their errno while classifying as disconnection; kernel stream link/unlink is exposed
     with direction and lifecycle validation; near negotiation selects jointly
     supported rate, period, and buffer sizes while preserving exact
     access/format/channels; broader negotiation and remaining lifecycle

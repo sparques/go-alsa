@@ -26,6 +26,20 @@ func TestStrictSuspendRecovery(t *testing.T) {
 	}
 }
 
+func TestOperationErrorClassifiesDisconnection(t *testing.T) {
+	t.Parallel()
+	for _, errno := range []error{syscall.ENODEV, syscall.ENXIO} {
+		err := operationError("status", errno)
+		if !errors.Is(err, ErrDisconnected) || !errors.Is(err, errno) {
+			t.Errorf("operationError(%v) = %v; want ErrDisconnected and original errno", errno, err)
+		}
+	}
+	err := operationError("status", syscall.EINVAL)
+	if errors.Is(err, ErrDisconnected) || !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("operationError(EINVAL) = %v", err)
+	}
+}
+
 func TestLinkValidation(t *testing.T) {
 	t.Parallel()
 	playback := &Handle{stream: streamPlayback}
