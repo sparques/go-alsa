@@ -119,7 +119,9 @@ item does not imply that its phase exit criteria have been met.
     an explicit symlink/traversal-confined directory resolver. Canonical dotted
     path indexing and bounded direct/`@func refer` resolution are implemented.
     A sandboxed evaluator supports injected variables/environment plus pure
-    `refer`, `concat`, `getenv`, and `igetenv` functions.)
+    `refer`, `concat`, `getenv`, and `igetenv` functions. Named PCM definitions
+    can be materialized with evaluated template arguments and preserved fields;
+    evaluated `type=hw` definitions convert to direct package selectors.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

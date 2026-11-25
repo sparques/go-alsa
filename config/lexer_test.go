@@ -60,6 +60,23 @@ func TestLexInstalledALSACorpus(t *testing.T) {
 	if value, err := NewEvaluator(document, EvalOptions{}).Reference("defaults.pcm.dmix.card"); err != nil || value.Kind != ValueInteger || value.Integer != 0 {
 		t.Fatalf("evaluate defaults.pcm.dmix.card = %#v, %v", value, err)
 	}
+	evaluator := NewEvaluator(document, EvalOptions{Variables: map[string]Value{
+		"CARD":   {Kind: ValueString, String: "Device"},
+		"DEV":    {Kind: ValueInteger, Integer: 0},
+		"SUBDEV": {Kind: ValueInteger, Integer: 0},
+	}})
+	pcm, err := evaluator.PCM("hw")
+	if err != nil || pcm.Type != "hw" {
+		t.Fatalf("evaluate pcm.hw = %#v, %v", pcm, err)
+	}
+	card, _ := pcm.Field("card")
+	device, _ := pcm.Field("device")
+	if card.String != "Device" || device.Integer != 0 {
+		t.Fatalf("pcm.hw fields = %#v", pcm.Fields)
+	}
+	if selector, err := pcm.HardwareSelector(); err != nil || selector != "hw:CARD=Device,DEV=0,SUBDEV=0" {
+		t.Fatalf("pcm.hw selector = %q, %v", selector, err)
+	}
 	t.Logf("lexed %d bytes into %d tokens and %d root statements", len(input), len(tokens), len(document.Statements))
 }
 
