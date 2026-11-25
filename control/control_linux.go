@@ -56,7 +56,7 @@ func Open(selector string) (*Handle, error) {
 func (h *Handle) cardInfo() (CardInfo, error) {
 	var raw uapi.ControlCardInfo
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlCardInfo, unsafe.Pointer(&raw)); err != nil {
-		return CardInfo{}, fmt.Errorf("alsa control: card info: %w", err)
+		return CardInfo{}, operationError("card info", err)
 	}
 	components, complete, err := h.cardComponents(maximumTLVBytes)
 	if err != nil {
@@ -107,7 +107,7 @@ func (h *Handle) Elements() ([]ElementID, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		var list uapi.ControlElementList
 		if err := h.core.fd.Ioctl(uapi.ControlIoctlElementList, unsafe.Pointer(&list)); err != nil {
-			return nil, fmt.Errorf("alsa control: count elements: %w", err)
+			return nil, operationError("count elements", err)
 		}
 		if list.Count > maximumElements {
 			return nil, fmt.Errorf("alsa control: kernel reported unreasonable element count %d", list.Count)
@@ -120,7 +120,7 @@ func (h *Handle) Elements() ([]ElementID, error) {
 		list.IDs = uintptr(unsafe.Pointer(unsafe.SliceData(ids)))
 		if err := h.core.fd.Ioctl(uapi.ControlIoctlElementList, unsafe.Pointer(&list)); err != nil {
 			runtime.KeepAlive(ids)
-			return nil, fmt.Errorf("alsa control: list elements: %w", err)
+			return nil, operationError("list elements", err)
 		}
 		runtime.KeepAlive(ids)
 		if list.Count > list.Space {
@@ -156,7 +156,7 @@ func (h *Handle) info(id ElementID, item uint32) (ElementInfo, error) {
 		if errors.Is(err, io.ErrClosedPipe) {
 			return ElementInfo{}, err
 		}
-		return ElementInfo{}, fmt.Errorf("alsa control: element info %s: %w", id, err)
+		return ElementInfo{}, operationError(fmt.Sprintf("element info %s", id), err)
 	}
 	info := ElementInfo{
 		ID: elementIDFromUAPI(raw.ID), Type: ElementType(raw.Type),
@@ -196,7 +196,7 @@ func (h *Handle) Read(id ElementID) (ElementValue, error) {
 	}
 	raw := uapi.ControlElementValue{ID: elementIDToUAPI(id)}
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementRead, unsafe.Pointer(&raw)); err != nil {
-		return ElementValue{}, fmt.Errorf("alsa control: read element %s: %w", id, err)
+		return ElementValue{}, operationError(fmt.Sprintf("read element %s", id), err)
 	}
 	value := ElementValue{ID: elementIDFromUAPI(raw.ID), Type: info.Type}
 	switch info.Type {
@@ -303,7 +303,7 @@ func (h *Handle) Write(value ElementValue) error {
 		return fmt.Errorf("alsa control: unsupported element type %s", info.Type)
 	}
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementWrite, unsafe.Pointer(&raw)); err != nil {
-		return fmt.Errorf("alsa control: write element %s: %w", value.ID, err)
+		return operationError(fmt.Sprintf("write element %s", value.ID), err)
 	}
 	return nil
 }
@@ -313,7 +313,7 @@ func (h *Handle) Write(value ElementValue) error {
 func (h *Handle) Lock(id ElementID) error {
 	raw := elementIDToUAPI(id)
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementLock, unsafe.Pointer(&raw)); err != nil {
-		return fmt.Errorf("alsa control: lock element %s: %w", id, err)
+		return operationError(fmt.Sprintf("lock element %s", id), err)
 	}
 	return nil
 }
@@ -322,7 +322,7 @@ func (h *Handle) Lock(id ElementID) error {
 func (h *Handle) Unlock(id ElementID) error {
 	raw := elementIDToUAPI(id)
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementUnlock, unsafe.Pointer(&raw)); err != nil {
-		return fmt.Errorf("alsa control: unlock element %s: %w", id, err)
+		return operationError(fmt.Sprintf("unlock element %s", id), err)
 	}
 	return nil
 }
@@ -330,7 +330,7 @@ func (h *Handle) Unlock(id ElementID) error {
 func (h *Handle) powerState() (PowerState, error) {
 	var state int32
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlPowerState, unsafe.Pointer(&state)); err != nil {
-		return 0, fmt.Errorf("alsa control: read power state: %w", err)
+		return 0, operationError("read power state", err)
 	}
 	return PowerState(state), nil
 }
@@ -343,7 +343,7 @@ func (h *Handle) setPowerState(state PowerState) error {
 	}
 	value := int32(state)
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlPower, unsafe.Pointer(&value)); err != nil {
-		return fmt.Errorf("alsa control: set power state %s: %w", state, err)
+		return operationError(fmt.Sprintf("set power state %s", state), err)
 	}
 	return nil
 }
@@ -371,7 +371,7 @@ func (h *Handle) addOrReplaceUserElement(spec UserElementSpec, replace bool) (El
 	}
 	if err := h.core.fd.Ioctl(request, unsafe.Pointer(&raw)); err != nil {
 		runtime.KeepAlive(names)
-		return ElementID{}, fmt.Errorf("alsa control: %s user element %s: %w", operation, spec.ID, err)
+		return ElementID{}, operationError(fmt.Sprintf("%s user element %s", operation, spec.ID), err)
 	}
 	runtime.KeepAlive(names)
 	return elementIDFromUAPI(raw.ID), nil
@@ -387,7 +387,7 @@ func (h *Handle) removeUserElement(id ElementID) error {
 	}
 	raw := elementIDToUAPI(id)
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlElementRemove, unsafe.Pointer(&raw)); err != nil {
-		return fmt.Errorf("alsa control: remove user element %s: %w", id, err)
+		return operationError(fmt.Sprintf("remove user element %s", id), err)
 	}
 	return nil
 }
@@ -402,7 +402,7 @@ func (h *Handle) cardComponents(maximumBytes int) (string, bool, error) {
 			if errors.Is(err, syscall.ENOTTY) {
 				return h.legacyCardComponents(maximumBytes)
 			}
-			return "", false, fmt.Errorf("alsa control: query component length: %w", err)
+			return "", false, operationError("query component length", err)
 		}
 		if raw.DataLength == 0 || raw.DataLength > uint32(maximumBytes) {
 			return "", false, fmt.Errorf("alsa control: component length %d exceeds limit %d", raw.DataLength, maximumBytes)
@@ -415,7 +415,7 @@ func (h *Handle) cardComponents(maximumBytes int) (string, bool, error) {
 			if errors.Is(err, syscall.ENOMEM) {
 				continue
 			}
-			return "", false, fmt.Errorf("alsa control: read components: %w", err)
+			return "", false, operationError("read components", err)
 		}
 		runtime.KeepAlive(buffer)
 		if raw.DataLength == 0 || raw.DataLength > uint32(len(buffer)) || buffer[raw.DataLength-1] != 0 {
@@ -429,7 +429,7 @@ func (h *Handle) cardComponents(maximumBytes int) (string, bool, error) {
 func (h *Handle) legacyCardComponents(maximumBytes int) (string, bool, error) {
 	var raw uapi.ControlCardInfo
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlCardInfo, unsafe.Pointer(&raw)); err != nil {
-		return "", false, fmt.Errorf("alsa control: fallback card info: %w", err)
+		return "", false, operationError("fallback card info", err)
 	}
 	length := len(raw.Components)
 	for index, value := range raw.Components {
@@ -523,7 +523,7 @@ func (h *Handle) ReadTLV(id ElementID, maximumBytes int) ([]uint32, error) {
 	binary.NativeEndian.PutUint32(buffer[4:8], uint32(maximumBytes))
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlTLVRead, unsafe.Pointer(unsafe.SliceData(buffer))); err != nil {
 		runtime.KeepAlive(buffer)
-		return nil, fmt.Errorf("alsa control: read TLV for %s: %w", id, err)
+		return nil, operationError(fmt.Sprintf("read TLV for %s", id), err)
 	}
 	runtime.KeepAlive(buffer)
 	length := int(binary.NativeEndian.Uint32(buffer[12:16])) + 8
@@ -589,7 +589,7 @@ func (h *Handle) writeTLV(id ElementID, words []uint32, command bool) error {
 	}
 	if err := h.core.fd.Ioctl(request, unsafe.Pointer(unsafe.SliceData(buffer))); err != nil {
 		runtime.KeepAlive(buffer)
-		return fmt.Errorf("alsa control: %s TLV for %s: %w", operation, id, err)
+		return operationError(fmt.Sprintf("%s TLV for %s", operation, id), err)
 	}
 	runtime.KeepAlive(buffer)
 	return nil
@@ -601,7 +601,7 @@ func (h *Handle) subscribe(enabled bool) error {
 		value = 1
 	}
 	if err := h.core.fd.Ioctl(uapi.ControlIoctlSubscribeEvents, unsafe.Pointer(&value)); err != nil {
-		return fmt.Errorf("alsa control: subscribe events: %w", err)
+		return operationError("subscribe events", err)
 	}
 	return nil
 }
@@ -625,7 +625,7 @@ func (h *Handle) nextEvent(ctx context.Context) (Event, error) {
 			return Event{Mask: EventMask(raw.Mask), ID: elementIDFromUAPI(raw.ID)}, nil
 		}
 		if !errors.Is(err, syscall.EAGAIN) {
-			return Event{}, fmt.Errorf("alsa control: read event: %w", err)
+			return Event{}, operationError("read event", err)
 		}
 		revents, err := h.core.fd.Wait(ctx, unix.POLLIN)
 		if err != nil {
@@ -670,4 +670,11 @@ func cString(value []byte) string {
 		}
 	}
 	return string(value)
+}
+
+func operationError(operation string, err error) error {
+	if errors.Is(err, syscall.ENODEV) || errors.Is(err, syscall.ENXIO) {
+		return fmt.Errorf("alsa control: %s: %w: %w", operation, alsa.ErrDisconnected, err)
+	}
+	return fmt.Errorf("alsa control: %s: %w", operation, err)
 }

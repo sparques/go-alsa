@@ -89,6 +89,8 @@ item does not imply that its phase exit criteria have been met.
     change retries, and an explicit legacy-kernel completeness fallback.
   - [x] Complete the card/control-element ioctl inventory. HWDEP, RawMIDI, UMP,
     and preferred-subdevice ioctls are separate device-discovery extensions.
+  - [x] Classify runtime control-device removal as `alsa.ErrDisconnected` while
+    preserving `ENODEV`/`ENXIO` for `errors.Is`.
 - [ ] **Phase 5 — simple mixer layer**
   - [x] Group standard playback/capture switch and volume controls by base name
     and index; provide typed reads and validated writes.

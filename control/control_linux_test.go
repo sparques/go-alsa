@@ -8,12 +8,27 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
 	alsa "github.com/sparques/go-alsa"
 	"github.com/sparques/go-alsa/internal/uapi"
 )
+
+func TestOperationErrorClassifiesDisconnection(t *testing.T) {
+	t.Parallel()
+	for _, errno := range []error{syscall.ENODEV, syscall.ENXIO} {
+		err := operationError("read element", errno)
+		if !errors.Is(err, alsa.ErrDisconnected) || !errors.Is(err, errno) {
+			t.Errorf("operationError(%v) = %v; want ErrDisconnected and original errno", errno, err)
+		}
+	}
+	err := operationError("read element", syscall.EINVAL)
+	if errors.Is(err, alsa.ErrDisconnected) || !errors.Is(err, syscall.EINVAL) {
+		t.Fatalf("operationError(EINVAL) = %v", err)
+	}
+}
 
 func TestResolveNumericCard(t *testing.T) {
 	t.Parallel()
