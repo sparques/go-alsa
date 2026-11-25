@@ -50,7 +50,11 @@ func TestLexInstalledALSACorpus(t *testing.T) {
 	if len(tokens) < 2 || tokens[len(tokens)-1].Kind != tokenEOF {
 		t.Fatalf("invalid token stream of length %d", len(tokens))
 	}
-	t.Logf("lexed %d bytes into %d tokens", len(input), len(tokens))
+	document, err := Parse(path, string(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("lexed %d bytes into %d tokens and %d root statements", len(input), len(tokens), len(document.Statements))
 }
 
 func TestLexRejectsUnterminatedValues(t *testing.T) {

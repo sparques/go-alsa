@@ -111,7 +111,8 @@ item does not imply that its phase exit criteria have been met.
 - [ ] **Phase 6 — ALSA configuration language**
   - [x] Add a location-aware bounded lexer for real-world ALSA words, quoted
     strings/escapes, comments, includes, compound delimiters, and modifiers.
-  - [ ] Parse compound nodes, arrays, assignment modes, and typed scalar values.
+  - [x] Parse ordered includes/assignments, compound nodes, arrays, assignment
+    modes, typed scalar values, and source locations with bounded nesting.
   - [ ] Evaluate includes, references, variables, functions, and named devices.
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
