@@ -11,6 +11,7 @@ import (
 	"time"
 
 	alsa "github.com/sparques/go-alsa"
+	alsaconfig "github.com/sparques/go-alsa/config"
 )
 
 // TestOpenHardware is opt-in because merely opening a PCM may conflict with a
@@ -41,6 +42,43 @@ func TestOpenHardware(t *testing.T) {
 	}
 	if err := handle.Close(); err != nil {
 		t.Errorf("second Close: %v", err)
+	}
+}
+
+func TestOpenNamedHardware(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_PCM")
+	if name == "" {
+		t.Skip("set GO_ALSA_TEST_PCM to a direct hw: PCM name")
+	}
+	address, err := alsa.ParseHardwareAddress(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := alsaconfig.Parse("test", `pcm.test {
+ type hw
+ card $CARD
+ device $DEV
+ subdevice $SUBDEV
+}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluator := alsaconfig.NewEvaluator(document, alsaconfig.EvalOptions{Variables: map[string]alsaconfig.Value{
+		"CARD":   {Kind: alsaconfig.ValueString, String: address.Card},
+		"DEV":    {Kind: alsaconfig.ValueInteger, Integer: int64(address.Device)},
+		"SUBDEV": {Kind: alsaconfig.ValueInteger, Integer: int64(address.Subdevice)},
+	}})
+	stream := alsa.Playback
+	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
+		stream = alsa.Capture
+	}
+	handle, err := OpenNamed(evaluator, "test", stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	if handle.Info().Card < 0 || handle.Info().Device != address.Device {
+		t.Fatalf("opened info = %#v", handle.Info())
 	}
 }
 

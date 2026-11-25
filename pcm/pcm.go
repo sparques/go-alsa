@@ -6,7 +6,26 @@ import (
 	"sync"
 
 	alsa "github.com/sparques/go-alsa"
+	alsaconfig "github.com/sparques/go-alsa/config"
 )
+
+// OpenNamed evaluates one configured PCM name and opens it when it resolves to
+// a direct type=hw definition. Other plugin types return an explicit error
+// until their software graph implementation is available.
+func OpenNamed(evaluator *alsaconfig.Evaluator, name string, stream alsa.Stream) (*Handle, error) {
+	if evaluator == nil {
+		return nil, errors.New("alsa pcm: named open requires a configuration evaluator")
+	}
+	definition, err := evaluator.PCM(name)
+	if err != nil {
+		return nil, err
+	}
+	selector, err := definition.HardwareSelector()
+	if err != nil {
+		return nil, err
+	}
+	return OpenHardware(selector, stream)
+}
 
 var (
 	// ErrProtocol reports an incompatible kernel PCM protocol.

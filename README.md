@@ -65,6 +65,18 @@ if err != nil {
 fmt.Println(device.PCM.Path)
 ```
 
+Parsed configuration can also open named definitions that evaluate directly to
+`type hw`; other plugin types remain explicit until their graph implementation
+is available:
+
+```go
+document, err := config.Parse("application.conf", `pcm.radio { type hw card Device device 0 }`)
+if err != nil {
+    log.Fatal(err)
+}
+handle, err := pcm.OpenNamed(config.NewEvaluator(document, config.EvalOptions{}), "radio", alsa.Capture)
+```
+
 Conventional kernel mixer controls are grouped by their Playback/Capture
 Switch/Volume suffixes. Raw values and decoded hundredths-of-a-decibel values
 are both available:
