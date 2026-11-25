@@ -11,6 +11,7 @@ const maximumNesting = 64
 type parser struct {
 	tokens []token
 	index  int
+	source string
 }
 
 func (p *parser) statements(end tokenKind, depth int) ([]Statement, error) {
@@ -35,7 +36,7 @@ func (p *parser) statements(end tokenKind, depth int) ([]Statement, error) {
 		}
 		if tok.Kind == tokenInclude {
 			p.index++
-			result = append(result, Statement{Position: publicPosition(tok.Position), Include: tok.Text})
+			result = append(result, Statement{Position: p.publicPosition(tok.Position), Include: tok.Text})
 			continue
 		}
 		if tok.Kind != tokenWord && tok.Kind != tokenString {
@@ -50,7 +51,7 @@ func (p *parser) statements(end tokenKind, depth int) ([]Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		assignment := &Assignment{Name: name, RawName: tok.Text, Mode: mode, Position: publicPosition(tok.Position), Value: value}
+		assignment := &Assignment{Name: name, RawName: tok.Text, Mode: mode, Position: p.publicPosition(tok.Position), Value: value}
 		result = append(result, Statement{Position: assignment.Position, Assignment: assignment})
 	}
 }
@@ -61,7 +62,7 @@ func (p *parser) value(depth int) (Value, error) {
 	}
 	tok := p.peek()
 	p.index++
-	position := publicPosition(tok.Position)
+	position := p.publicPosition(tok.Position)
 	switch tok.Kind {
 	case tokenString:
 		return Value{Kind: ValueString, Position: position, String: tok.Text}, nil
@@ -154,6 +155,6 @@ func (p *parser) error(tok token, message string) error {
 	return &syntaxError{Position: tok.Position, Message: fmt.Sprintf("%s near %q", message, tok.Text)}
 }
 
-func publicPosition(value position) Position {
-	return Position{Offset: value.Offset, Line: value.Line, Column: value.Column}
+func (p *parser) publicPosition(value position) Position {
+	return Position{Source: p.source, Offset: value.Offset, Line: value.Line, Column: value.Column}
 }

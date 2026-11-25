@@ -114,6 +114,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Parse ordered includes/assignments, compound nodes, arrays, assignment
     modes, typed scalar values, and source locations with bounded nesting.
   - [ ] Evaluate includes, references, variables, functions, and named devices.
+    (Recursive include expansion is implemented through an injected resolver,
+    with stable source locations, cycle/depth detection, aggregate limits, and
+    an explicit symlink/traversal-confined directory resolver.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

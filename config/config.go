@@ -2,6 +2,7 @@ package config
 
 // Position identifies a byte and human-readable line/column in one source.
 type Position struct {
+	Source string
 	Offset int
 	Line   int
 	Column int
@@ -72,7 +73,7 @@ func Parse(source, input string) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := parser{tokens: tokens}
+	p := parser{tokens: tokens, source: source}
 	statements, err := p.statements(tokenEOF, 0)
 	if err != nil {
 		return nil, err
