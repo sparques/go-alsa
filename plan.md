@@ -136,8 +136,8 @@ item does not imply that its phase exit criteria have been met.
     `alsa-info-go` kernel discovery command.
   - [ ] Add PCM/control/mixer examples, compatibility and troubleshooting
     documentation, migration guide, `go-amixer`, `go-aplay`, and `go-arecord`.
-    (`alsa-pcm-go` provides raw direct-hardware capture/playback and
-    `go-amixer` provides simple mixer inspection/writes.)
+    (`alsa-pcm-go`, `go-aplay`, and `go-arecord` provide raw direct-hardware
+    streaming; `go-amixer` provides simple mixer inspection/writes.)
 - [ ] **v0.1 release gate — direct kernel foundation**
 - [ ] **v0.2 release gate — complete direct PCM and controls**
 - [ ] **v0.3 release gate — configuration and mixer**

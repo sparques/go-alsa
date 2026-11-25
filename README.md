@@ -45,6 +45,9 @@ Play a stereo raw stream through a device with exact parameters:
 go run ./cmd/alsa-pcm-go -device hw:3,0 -channels 2 -exact < playback.raw
 ```
 
+The direction-specific `go-arecord` and `go-aplay` commands provide the same
+raw streaming engine with conventional command names.
+
 Inspect simple mixer and enumerated controls without libasound:
 
 ```sh
