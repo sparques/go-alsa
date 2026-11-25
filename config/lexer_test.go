@@ -57,6 +57,9 @@ func TestLexInstalledALSACorpus(t *testing.T) {
 	if value, err := document.ResolveReference("defaults.pcm.dmix.card"); err != nil || value.Kind != ValueInteger || value.Integer != 0 {
 		t.Fatalf("resolve defaults.pcm.dmix.card = %#v, %v", value, err)
 	}
+	if value, err := NewEvaluator(document, EvalOptions{}).Reference("defaults.pcm.dmix.card"); err != nil || value.Kind != ValueInteger || value.Integer != 0 {
+		t.Fatalf("evaluate defaults.pcm.dmix.card = %#v, %v", value, err)
+	}
 	t.Logf("lexed %d bytes into %d tokens and %d root statements", len(input), len(tokens), len(document.Statements))
 }
 
