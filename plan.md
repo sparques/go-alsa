@@ -109,6 +109,10 @@ item does not imply that its phase exit criteria have been met.
     Capture Source selection groups without guessing vendor-specific names.
   - [ ] Add broader hardware fixtures.
 - [ ] **Phase 6 — ALSA configuration language**
+  - [x] Add a location-aware bounded lexer for real-world ALSA words, quoted
+    strings/escapes, comments, includes, compound delimiters, and modifiers.
+  - [ ] Parse compound nodes, arrays, assignment modes, and typed scalar values.
+  - [ ] Evaluate includes, references, variables, functions, and named devices.
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
