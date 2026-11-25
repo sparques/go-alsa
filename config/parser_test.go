@@ -42,7 +42,7 @@ pcm.!default {
 
 func TestAssignmentModes(t *testing.T) {
 	for raw, want := range map[string]AssignmentMode{"pcm.!default": AssignOverride, "?defaults.foo": AssignDefault, "cards.+x": AssignMerge, "-obsolete": AssignRemove, "normal": AssignNormal} {
-		_, got := assignmentName(raw)
+		_, _, got := assignmentName(raw, false)
 		if got != want {
 			t.Errorf("assignmentName(%q) mode = %v; want %v", raw, got, want)
 		}

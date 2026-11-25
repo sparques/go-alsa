@@ -116,7 +116,8 @@ item does not imply that its phase exit criteria have been met.
   - [ ] Evaluate includes, references, variables, functions, and named devices.
     (Recursive include expansion is implemented through an injected resolver,
     with stable source locations, cycle/depth detection, aggregate limits, and
-    an explicit symlink/traversal-confined directory resolver.)
+    an explicit symlink/traversal-confined directory resolver. Canonical dotted
+    path indexing and bounded direct/`@func refer` resolution are implemented.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

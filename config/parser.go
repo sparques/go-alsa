@@ -43,7 +43,7 @@ func (p *parser) statements(end tokenKind, depth int) ([]Statement, error) {
 			return nil, p.error(tok, "expected configuration key")
 		}
 		p.index++
-		name, mode := assignmentName(tok.Text)
+		name, path, mode := assignmentName(tok.Text, tok.Kind == tokenString)
 		if name == "" {
 			return nil, p.error(tok, "empty configuration key")
 		}
@@ -51,7 +51,7 @@ func (p *parser) statements(end tokenKind, depth int) ([]Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		assignment := &Assignment{Name: name, RawName: tok.Text, Mode: mode, Position: p.publicPosition(tok.Position), Value: value}
+		assignment := &Assignment{Name: name, RawName: tok.Text, Path: path, Mode: mode, Position: p.publicPosition(tok.Position), Value: value}
 		result = append(result, Statement{Position: assignment.Position, Assignment: assignment})
 	}
 }
@@ -125,9 +125,12 @@ func scalarValue(text string, position Position) Value {
 	return Value{Kind: ValueString, Position: position, String: text}
 }
 
-func assignmentName(raw string) (string, AssignmentMode) {
+func assignmentName(raw string, literal bool) (string, []string, AssignmentMode) {
 	mode := AssignNormal
-	parts := strings.Split(raw, ".")
+	parts := []string{raw}
+	if !literal {
+		parts = strings.Split(raw, ".")
+	}
 	for index, part := range parts {
 		if part == "" {
 			continue
@@ -146,7 +149,7 @@ func assignmentName(raw string) (string, AssignmentMode) {
 		}
 		break
 	}
-	return strings.Join(parts, "."), mode
+	return strings.Join(parts, "."), parts, mode
 }
 
 func (p *parser) peek() token { return p.tokens[p.index] }

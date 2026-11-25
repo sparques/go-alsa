@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 // Position identifies a byte and human-readable line/column in one source.
 type Position struct {
 	Source string
@@ -48,9 +50,48 @@ type Value struct {
 type Assignment struct {
 	Name     string
 	RawName  string
+	Path     []string
 	Mode     AssignmentMode
 	Position Position
 	Value    Value
+}
+
+// Assignments returns every assignment to a canonical dotted path in source
+// order. Nested compound keys are indexed beneath their parent path.
+func (d *Document) Assignments(name string) []*Assignment {
+	if d == nil {
+		return nil
+	}
+	var result []*Assignment
+	collectAssignments(d.Statements, nil, name, &result)
+	return result
+}
+
+// Lookup returns the last assignment to name. Assignment-mode evaluation is
+// intentionally separate; Assignments exposes all definitions when policy is
+// significant.
+func (d *Document) Lookup(name string) (*Assignment, bool) {
+	items := d.Assignments(name)
+	if len(items) == 0 {
+		return nil, false
+	}
+	return items[len(items)-1], true
+}
+
+func collectAssignments(statements []Statement, prefix []string, wanted string, result *[]*Assignment) {
+	for _, statement := range statements {
+		assignment := statement.Assignment
+		if assignment == nil {
+			continue
+		}
+		path := append(append([]string(nil), prefix...), assignment.Path...)
+		if strings.Join(path, ".") == wanted {
+			*result = append(*result, assignment)
+		}
+		if assignment.Value.Kind == ValueCompound {
+			collectAssignments(assignment.Value.Entries, path, wanted, result)
+		}
+	}
 }
 
 // Statement is either an assignment or an include, preserving source order.
