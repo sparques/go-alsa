@@ -45,6 +45,13 @@ Play a stereo raw stream through a device with exact parameters:
 go run ./cmd/alsa-pcm-go -device hw:3,0 -channels 2 -exact < playback.raw
 ```
 
+Inspect simple mixer and enumerated controls without libasound:
+
+```sh
+go run ./cmd/go-amixer -card Device
+go run ./cmd/go-amixer -card Device -name Mic -capture-volume 0.5
+```
+
 Direct hardware names can be parsed and resolved without libasound:
 
 ```go

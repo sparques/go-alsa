@@ -125,6 +125,8 @@ item does not imply that its phase exit criteria have been met.
     simultaneous stereo playback and mono capture; verify the expected tone is
     dominant and both stream XRUN counters remain zero.
   - [ ] Add race, fuzz, differential, virtual-device, and hardware matrices.
+    (Hardware-name and nested control-TLV fuzz targets are now present; the
+    complete scheduled fuzz and differential matrices remain.)
 - [ ] **Performance and realtime requirements complete**
 - [ ] **Security and robustness review complete**
 - [ ] **Documentation and examples complete**
@@ -132,7 +134,8 @@ item does not imply that its phase exit criteria have been met.
     `alsa-info-go` kernel discovery command.
   - [ ] Add PCM/control/mixer examples, compatibility and troubleshooting
     documentation, migration guide, `go-amixer`, `go-aplay`, and `go-arecord`.
-    (`alsa-pcm-go` now provides a raw direct-hardware capture/playback example.)
+    (`alsa-pcm-go` provides raw direct-hardware capture/playback and
+    `go-amixer` provides simple mixer inspection/writes.)
 - [ ] **v0.1 release gate — direct kernel foundation**
 - [ ] **v0.2 release gate — complete direct PCM and controls**
 - [ ] **v0.3 release gate — configuration and mixer**
