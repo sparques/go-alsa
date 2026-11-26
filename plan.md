@@ -135,7 +135,11 @@ item does not imply that its phase exit criteria have been met.
     missing-only reference fallbacks, and numeric/injected `card_inum` are
     implemented; with the standard card-alias file loaded hermetically, the
     host's installed `pcm.default` resolves to its typed `empty` fallback
-    graph without executing alsa-lib hooks.)
+    graph without executing alsa-lib hooks. Evaluated PCM definitions can now
+    be materialized as typed plugin graphs with compound or named `slave.pcm`
+    edges, preserved unknown plugins/fields, bounded depth, and cycle errors
+    that include the complete active resolution chain; the installed default
+    materializes as `empty -> plug -> hw`.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

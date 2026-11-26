@@ -10,6 +10,10 @@ import (
 // returned error.
 var ErrNotFound = errors.New("alsa config: assignment not found")
 
+// ErrGraphCycle reports a named PCM graph whose slave chain refers back to an
+// active node.
+var ErrGraphCycle = errors.New("alsa config: PCM graph cycle")
+
 // Position identifies a byte and human-readable line/column in one source.
 type Position struct {
 	Source string

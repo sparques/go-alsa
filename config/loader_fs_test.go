@@ -94,4 +94,11 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 	if defaultPCM.Type != "empty" {
 		t.Fatalf("installed pcm.default type = %q; want empty", defaultPCM.Type)
 	}
+	graph, err := NewEvaluator(withAliases, EvalOptions{}).Graph("default")
+	if err != nil {
+		t.Fatalf("materialize installed pcm.default graph: %v", err)
+	}
+	if graph.Root.Type != "empty" || graph.Root.Slave == nil || graph.Root.Slave.Type != "plug" || graph.Root.Slave.Slave == nil || graph.Root.Slave.Slave.Type != "hw" {
+		t.Fatalf("installed pcm.default plugin chain is not empty -> plug -> hw")
+	}
 }
