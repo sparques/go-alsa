@@ -14,6 +14,10 @@ var ErrNotFound = errors.New("alsa config: assignment not found")
 // active node.
 var ErrGraphCycle = errors.New("alsa config: PCM graph cycle")
 
+// ErrControlGraphCycle reports a named control graph whose child chain refers
+// back to an active node.
+var ErrControlGraphCycle = errors.New("alsa config: control graph cycle")
+
 // Position identifies a byte and human-readable line/column in one source.
 type Position struct {
 	Source string

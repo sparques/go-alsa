@@ -162,7 +162,11 @@ item does not imply that its phase exit criteria have been met.
     `plug -> dsnoop` for capture. `pcm.OpenNamed` now safely traverses routing-
     only `empty` and direction-selecting `asym` nodes to direct hardware;
     executable software/shared plugins return a typed, source-located
-    `ErrUnsupportedPlugin` until their engines exist.)
+    `ErrUnsupportedPlugin` until their engines exist. Named controls likewise
+    materialize bounded, cycle-checked `empty -> child` graphs;
+    `control.OpenNamed` traverses `empty` to `hw` and returns its own typed,
+    source-located unsupported-plugin error for server plugins. The installed
+    card-3 control default resolves as `empty -> hw`.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

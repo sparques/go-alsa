@@ -111,6 +111,13 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 		t.Fatalf("installed skipped hooks = %v", hooks.Skipped)
 	}
 	withAliases := hooks.Document
+	controlGraph, err := NewEvaluator(withAliases, EvalOptions{}).ControlGraph("default:CARD=3")
+	if err != nil {
+		t.Fatalf("materialize installed card-specific control: %v", err)
+	}
+	if controlGraph.Root.Type != "empty" || controlGraph.Root.Child == nil || controlGraph.Root.Child.Type != "hw" {
+		t.Fatalf("installed control default is not empty -> hw")
+	}
 	defaultPCM, err := NewEvaluator(withAliases, EvalOptions{}).PCMName("default")
 	if err != nil {
 		t.Fatalf("evaluate installed pcm.default: %v", err)
