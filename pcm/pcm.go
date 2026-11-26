@@ -3,28 +3,50 @@ package pcm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	alsa "github.com/sparques/go-alsa"
 	alsaconfig "github.com/sparques/go-alsa/config"
 )
 
-// OpenNamed evaluates one configured PCM name and opens it when it resolves to
-// a direct type=hw definition. Other plugin types return an explicit error
-// until their software graph implementation is available.
+// OpenNamed evaluates one configured PCM graph, traverses routing-only empty
+// and asym nodes, and opens its direct type=hw endpoint. Executable software
+// plugins return ErrUnsupportedPlugin until their graph stages are available.
 func OpenNamed(evaluator *alsaconfig.Evaluator, name string, stream alsa.Stream) (*Handle, error) {
 	if evaluator == nil {
 		return nil, errors.New("alsa pcm: named open requires a configuration evaluator")
 	}
-	definition, err := evaluator.PCMName(name)
+	graph, err := evaluator.Graph(name)
 	if err != nil {
 		return nil, err
 	}
-	selector, err := definition.HardwareSelector()
+	selector, err := directGraphSelector(graph.Root, stream)
 	if err != nil {
 		return nil, err
 	}
 	return OpenHardware(selector, stream)
+}
+
+func directGraphSelector(node *alsaconfig.PCMNode, stream alsa.Stream) (string, error) {
+	for node != nil {
+		switch node.Type {
+		case "hw":
+			definition := alsaconfig.PCM{Name: node.Name, Type: node.Type, Position: node.Position, Fields: node.Fields}
+			return definition.HardwareSelector()
+		case "empty":
+			node = node.Slave
+		case "asym":
+			if stream == alsa.Playback {
+				node = node.Playback
+			} else {
+				node = node.Capture
+			}
+		default:
+			return "", &UnsupportedPluginError{Plugin: node.Type, Node: node.Name, Position: node.Position}
+		}
+	}
+	return "", errors.New("alsa pcm: configured routing graph has no endpoint for requested stream")
 }
 
 var (
@@ -43,7 +65,32 @@ var (
 	ErrSuspended = errors.New("alsa pcm: suspended")
 	// ErrDisconnected reports hardware removal or a disconnected PCM stream.
 	ErrDisconnected = alsa.ErrDisconnected
+	// ErrUnsupportedPlugin reports a configured PCM plugin whose execution is
+	// not implemented by the native graph engine.
+	ErrUnsupportedPlugin = errors.New("alsa pcm: unsupported configured plugin")
 )
+
+// UnsupportedPluginError identifies the first non-routing plugin that
+// prevents a named graph from reaching direct hardware.
+type UnsupportedPluginError struct {
+	Plugin   string
+	Node     string
+	Position alsaconfig.Position
+}
+
+func (e *UnsupportedPluginError) Error() string {
+	location := ""
+	if e.Position.Source != "" {
+		location = " at " + e.Position.Source
+		if e.Position.Line > 0 {
+			location += fmt.Sprintf(":%d:%d", e.Position.Line, e.Position.Column)
+		}
+	}
+	return fmt.Sprintf("%v %q at node %q%s", ErrUnsupportedPlugin, e.Plugin, e.Node, location)
+}
+
+// Unwrap permits errors.Is(err, ErrUnsupportedPlugin).
+func (e *UnsupportedPluginError) Unwrap() error { return ErrUnsupportedPlugin }
 
 // Info is immutable metadata returned by the kernel for an opened PCM stream.
 type Info struct {

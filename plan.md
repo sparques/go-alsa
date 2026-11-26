@@ -159,7 +159,10 @@ item does not imply that its phase exit criteria have been met.
     graph. Typed graph nodes now expose `playback.pcm` and `capture.pcm`
     branches as well as `slave.pcm`; injected `card_id` evaluation lets the
     installed branches materialize through `plug -> dmix` for playback and
-    `plug -> dsnoop` for capture.)
+    `plug -> dsnoop` for capture. `pcm.OpenNamed` now safely traverses routing-
+    only `empty` and direction-selecting `asym` nodes to direct hardware;
+    executable software/shared plugins return a typed, source-located
+    `ErrUnsupportedPlugin` until their engines exist.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
