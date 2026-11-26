@@ -189,6 +189,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add allocation-free streaming sinc state with rational phase
     continuity, FIR history across arbitrary chunks, explicit source/output
     latency, deterministic reset, and zero-padded flush matching block output.
+  - [x] Compose byte-format decoding, channel routing, continuous sinc
+    resampling, and destination encoding into a caller-scratch streaming stage
+    with exact pending/flush sizing and no processing-time allocation.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**

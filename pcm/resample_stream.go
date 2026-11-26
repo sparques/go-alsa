@@ -58,6 +58,19 @@ func (s *SincStream) PendingFrames(sourceFrames int) (int, error) {
 	return count, nil
 }
 
+// PendingFlushFrames returns the number of frames Flush would emit without
+// changing stream state.
+func (s *SincStream) PendingFlushFrames() (int, error) {
+	if s == nil || s.converter == nil || s.flushed {
+		return 0, fmt.Errorf("alsa pcm: streaming resampler cannot flush")
+	}
+	target, err := s.converter.OutputFrames(int(s.totalInput))
+	if err != nil {
+		return 0, err
+	}
+	return target - int(s.outputs), nil
+}
+
 // Process consumes all complete interleaved source frames and emits every
 // output whose full FIR window is available. Destination must hold all frames
 // reported by PendingFrames or no state is changed.
@@ -97,11 +110,10 @@ func (s *SincStream) Flush(destination []int32) (int, error) {
 	if s == nil || s.converter == nil || s.flushed {
 		return 0, fmt.Errorf("alsa pcm: streaming resampler cannot flush")
 	}
-	target, err := s.converter.OutputFrames(int(s.totalInput))
+	pending, err := s.PendingFlushFrames()
 	if err != nil {
 		return 0, err
 	}
-	pending := target - int(s.outputs)
 	if pending < 0 || pending > maximumInt/s.channels || len(destination) < pending*s.channels {
 		return 0, fmt.Errorf("alsa pcm: streaming resampler flush destination is too short")
 	}
