@@ -180,6 +180,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add allocation-free interleaved channel matrices with Q2.30 gains,
     saturation, arbitrary mapping/mixing, duplication, averaging, and silence
     insertion.
+  - [x] Compose integer decoding, channel matrices, and encoding into a
+    caller-scratch, allocation-free interleaved conversion pipeline with
+    explicit size/overflow validation.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
