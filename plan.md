@@ -145,7 +145,11 @@ item does not imply that its phase exit criteria have been met.
     merge/override precedence. Named `ctl` templates share the PCM runtime
     argument binder, preserve unknown control plugins/fields, convert `type=hw`
     definitions to direct selectors, and can be opened through
-    `control.OpenNamed`; the installed `ctl.hw:3` resolves correctly.)
+    `control.OpenNamed`; the installed `ctl.hw:3` resolves correctly. Pure
+    `datadir` and declarative `func load` hooks can be applied through a
+    caller-confined resolver; unsupported hooks such as
+    `load_for_all_cards` are reported rather than executed or silently treated
+    as compatible, and the installed default graph now uses this hook path.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

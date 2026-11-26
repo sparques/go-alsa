@@ -33,10 +33,13 @@ func NewDirectoryResolver(root string) (IncludeResolver, error) {
 		} else if fromSource != "" && filepath.IsAbs(fromSource) {
 			base = filepath.Dir(fromSource)
 		}
-		if name == "" || filepath.IsAbs(name) {
-			return "", "", fmt.Errorf("include path %q must be relative", specification)
+		if name == "" {
+			return "", "", fmt.Errorf("include path %q must not be empty", specification)
 		}
-		candidate := filepath.Join(base, filepath.Clean(name))
+		candidate := filepath.Clean(name)
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(base, candidate)
+		}
 		realPath, err := filepath.EvalSymlinks(candidate)
 		if err != nil {
 			return "", "", err

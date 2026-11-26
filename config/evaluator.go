@@ -15,6 +15,9 @@ const maximumEvaluatedString = 1 << 20
 type EvalOptions struct {
 	Variables map[string]Value
 	LookupEnv func(name string) (value string, ok bool)
+	// DataDir is returned by the pure datadir function. An empty value leaves
+	// that function unavailable rather than consulting the host implicitly.
+	DataDir string
 	// CardNumber resolves a stable ALSA card ID for functions such as
 	// card_inum. Numeric card selectors do not require this callback.
 	CardNumber func(card string) (number int64, err error)
@@ -196,6 +199,14 @@ func (e *Evaluator) function(name string, compound Value, active map[string]bool
 			return Value{}, fmt.Errorf("alsa config: card_inum resolved negative card %d", number)
 		}
 		return Value{Kind: ValueInteger, Position: compound.Position, Integer: number}, nil
+	case "datadir":
+		if e.options.DataDir == "" {
+			return Value{}, fmt.Errorf("alsa config: datadir was not provided")
+		}
+		if len(e.options.DataDir) > maximumEvaluatedString {
+			return Value{}, fmt.Errorf("alsa config: datadir exceeds 1 MiB")
+		}
+		return Value{Kind: ValueString, Position: compound.Position, String: e.options.DataDir}, nil
 	default:
 		return Value{}, fmt.Errorf("alsa config: unsupported function %q", name)
 	}

@@ -88,16 +88,26 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 		t.Fatalf("installed ctl.hw selector = %q, %v", controlSelector, err)
 	}
 
-	// cards/aliases.conf is normally loaded lazily by alsa-lib's card hook. Add
-	// it explicitly here so this hermetic loader can exercise the installed
-	// default-device graph without executing hooks.
-	withAliases, err := LoadLayers([]Layer{
-		{Source: path, Contents: string(contents)},
-		{Source: "installed-card-aliases", Contents: "<confdir:cards/aliases.conf>"},
-	}, resolver)
+	// Apply the optional top-level override hook through the confined resolver;
+	// host paths outside root are ignored because this hook declares errors=false.
+	topHooks, err := LoadHooks(document, "@hooks", EvalOptions{DataDir: root}, resolver)
 	if err != nil {
-		t.Fatalf("load installed aliases: %v", err)
+		t.Fatalf("load installed top-level hooks: %v", err)
 	}
+	if len(topHooks.Skipped) != 0 {
+		t.Fatalf("installed skipped top-level hooks = %v", topHooks.Skipped)
+	}
+
+	// Apply only the declarative card load hook. The driver-specific
+	// load_for_all_cards hook remains explicit and is reported as skipped.
+	hooks, err := LoadHooks(topHooks.Document, "cards.@hooks", EvalOptions{DataDir: root}, resolver)
+	if err != nil {
+		t.Fatalf("load installed card hooks: %v", err)
+	}
+	if len(hooks.Skipped) != 1 || hooks.Skipped[0] != "load_for_all_cards" {
+		t.Fatalf("installed skipped hooks = %v", hooks.Skipped)
+	}
+	withAliases := hooks.Document
 	defaultPCM, err := NewEvaluator(withAliases, EvalOptions{}).PCMName("default")
 	if err != nil {
 		t.Fatalf("evaluate installed pcm.default: %v", err)
