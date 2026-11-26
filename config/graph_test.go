@@ -49,6 +49,29 @@ pcm.c { type plug slave.pcm a }`)
 	}
 }
 
+func TestPCMGraphMaterializesAsymBranches(t *testing.T) {
+	document, err := Parse("test", `pcm.default {
+ type asym
+ playback.pcm { type plug slave.pcm playback_hw }
+ capture.pcm capture_hw
+}
+pcm.playback_hw { type hw card 0 }
+pcm.capture_hw { type hw card 1 }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := NewEvaluator(document, EvalOptions{}).Graph("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if graph.Root.Playback == nil || graph.Root.Playback.Type != "plug" || graph.Root.Playback.Slave == nil || graph.Root.Playback.Slave.Type != "hw" {
+		t.Fatalf("playback branch = %#v", graph.Root.Playback)
+	}
+	if graph.Root.Capture == nil || graph.Root.Capture.Type != "hw" || graph.Root.Edges["capture.pcm"] != graph.Root.Capture {
+		t.Fatalf("capture branch = %#v", graph.Root.Capture)
+	}
+}
+
 func TestPCMGraphRetainsUnknownPlugin(t *testing.T) {
 	document, err := Parse("test", `pcm.vendor { type third_party opaque.value 9 }`)
 	if err != nil {

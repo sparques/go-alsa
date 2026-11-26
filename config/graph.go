@@ -15,7 +15,8 @@ type PCMGraph struct {
 }
 
 // PCMNode is one configured PCM plugin. Fields preserves every evaluated
-// direct field. Slave identifies the common slave.pcm edge when present.
+// direct field. Slave, Playback, and Capture identify common PCM edges; Edges
+// contains the same nodes keyed by their configuration field names.
 // Unknown plugin types and fields are retained so callers can reject them
 // explicitly instead of silently changing behavior.
 type PCMNode struct {
@@ -24,6 +25,9 @@ type PCMNode struct {
 	Position Position
 	Fields   map[string]Value
 	Slave    *PCMNode
+	Playback *PCMNode
+	Capture  *PCMNode
+	Edges    map[string]*PCMNode
 }
 
 // Graph resolves a PCM invocation into a typed plugin graph. Named slave.pcm
@@ -65,27 +69,42 @@ func (e *Evaluator) graphFields(name string, position Position, fields map[strin
 		Type:     typeValue.String,
 		Position: position,
 		Fields:   cloneFields(fields),
+		Edges:    make(map[string]*PCMNode),
 	}
-	slave, exists := fields["slave.pcm"]
-	if !exists {
-		return node, nil
-	}
-	var err error
-	switch slave.Kind {
-	case ValueString:
-		if slave.String == "" {
-			return nil, fmt.Errorf("alsa config: PCM graph node %q has an empty slave.pcm", name)
+	for _, edgeName := range []string{"slave.pcm", "playback.pcm", "capture.pcm"} {
+		value, exists := fields[edgeName]
+		if !exists {
+			continue
 		}
-		node.Slave, err = e.graphInvocation(slave.String, chain, active, depth+1)
-	case ValueCompound:
-		node.Slave, err = e.graphCompound(name+".slave.pcm", slave, chain, active, depth+1)
-	default:
-		return nil, fmt.Errorf("alsa config: PCM graph node %q has non-PCM slave.pcm", name)
-	}
-	if err != nil {
-		return nil, err
+		edge, err := e.graphEdge(name, edgeName, value, chain, active, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		node.Edges[edgeName] = edge
+		switch edgeName {
+		case "slave.pcm":
+			node.Slave = edge
+		case "playback.pcm":
+			node.Playback = edge
+		case "capture.pcm":
+			node.Capture = edge
+		}
 	}
 	return node, nil
+}
+
+func (e *Evaluator) graphEdge(name, edgeName string, value Value, chain []string, active map[string]int, depth int) (*PCMNode, error) {
+	switch value.Kind {
+	case ValueString:
+		if value.String == "" {
+			return nil, fmt.Errorf("alsa config: PCM graph node %q has an empty %s", name, edgeName)
+		}
+		return e.graphInvocation(value.String, chain, active, depth+1)
+	case ValueCompound:
+		return e.graphCompound(name+"."+edgeName, value, chain, active, depth+1)
+	default:
+		return nil, fmt.Errorf("alsa config: PCM graph node %q has non-PCM %s", name, edgeName)
+	}
 }
 
 func (e *Evaluator) graphCompound(name string, value Value, chain []string, active map[string]int, depth int) (*PCMNode, error) {

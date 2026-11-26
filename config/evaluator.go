@@ -24,6 +24,8 @@ type EvalOptions struct {
 	// CardName supplies alsa-lib's configuration card_name value for a numeric
 	// or stable selector. It is never discovered implicitly.
 	CardName func(card string) (name string, err error)
+	// CardID supplies the stable kernel ALSA card ID used by card_id.
+	CardID func(card string) (id string, err error)
 	// Cards supplies kernel card number/driver pairs to declarative
 	// load_for_all_cards hooks. No discovery is performed implicitly.
 	Cards          []HookCard
@@ -278,6 +280,24 @@ func (e *Evaluator) function(name string, compound Value, active map[string]bool
 			return Value{}, fmt.Errorf("alsa config: card_name resolve card %q: %w", selector, err)
 		}
 		return Value{Kind: ValueString, Position: compound.Position, String: name}, nil
+	case "card_id":
+		card, ok := compoundValue(compound, "card")
+		if !ok {
+			return Value{}, fmt.Errorf("alsa config: card_id requires a card")
+		}
+		evaluated, err := e.value(card, active, depth+1)
+		if err != nil {
+			return Value{}, fmt.Errorf("alsa config: card_id card: %w", err)
+		}
+		selector, err := scalarText(evaluated)
+		if err != nil || selector == "" || e.options.CardID == nil {
+			return Value{}, fmt.Errorf("alsa config: card_id cannot resolve card %q", selector)
+		}
+		id, err := e.options.CardID(selector)
+		if err != nil || id == "" {
+			return Value{}, fmt.Errorf("alsa config: card_id resolve card %q: %w", selector, err)
+		}
+		return Value{Kind: ValueString, Position: compound.Position, String: id}, nil
 	case "datadir":
 		if e.options.DataDir == "" {
 			return Value{}, fmt.Errorf("alsa config: datadir was not provided")

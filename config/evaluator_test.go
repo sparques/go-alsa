@@ -72,6 +72,20 @@ func TestEvaluatorCardName(t *testing.T) {
 	}
 }
 
+func TestEvaluatorCardID(t *testing.T) {
+	document, err := Parse("test", `value { @func card_id card 3 }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluator := NewEvaluator(document, EvalOptions{CardID: func(card string) (string, error) {
+		return "Device", nil
+	}})
+	value, err := evaluator.Reference("value")
+	if err != nil || value.String != "Device" {
+		t.Fatalf("card_id = %#v, %v", value, err)
+	}
+}
+
 func TestEvaluatorAliasPrefixWithRuntimeArguments(t *testing.T) {
 	document, err := Parse("test", `cards.3 cards.Driver
 cards.Driver.pcm.default {

@@ -125,12 +125,20 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 	if graph.Root.Type != "empty" || graph.Root.Slave == nil || graph.Root.Slave.Type != "plug" || graph.Root.Slave.Slave == nil || graph.Root.Slave.Slave.Type != "hw" {
 		t.Fatalf("installed pcm.default plugin chain is not empty -> plug -> hw")
 	}
-	cardEvaluator := NewEvaluator(withAliases, EvalOptions{CardName: func(card string) (string, error) {
-		if card != "3" {
-			t.Fatalf("installed card_name received %q", card)
-		}
-		return "No-Special-Profile", nil
-	}})
+	cardEvaluator := NewEvaluator(withAliases, EvalOptions{
+		CardName: func(card string) (string, error) {
+			if card != "3" {
+				t.Fatalf("installed card_name received %q", card)
+			}
+			return "No-Special-Profile", nil
+		},
+		CardID: func(card string) (string, error) {
+			if card != "3" {
+				t.Fatalf("installed card_id received %q", card)
+			}
+			return "Device", nil
+		},
+	})
 	cardValue, err := cardEvaluator.Reference("cards.3.pcm.default:CARD=3")
 	if err != nil {
 		t.Fatalf("resolve installed numeric-card alias: %v", err)
@@ -149,5 +157,12 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 			slaveType = cardGraph.Root.Slave.Type
 		}
 		t.Fatalf("installed USB card default types = %s -> %s; want empty -> asym", cardGraph.Root.Type, slaveType)
+	}
+	asym := cardGraph.Root.Slave
+	if asym.Playback == nil || asym.Playback.Type != "plug" || asym.Playback.Slave == nil || asym.Playback.Slave.Type != "dmix" {
+		t.Fatalf("installed USB playback branch did not resolve to plug -> dmix")
+	}
+	if asym.Capture == nil || asym.Capture.Type != "plug" || asym.Capture.Slave == nil || asym.Capture.Slave.Type != "dsnoop" {
+		t.Fatalf("installed USB capture branch did not resolve to plug -> dsnoop")
 	}
 }

@@ -156,7 +156,10 @@ item does not imply that its phase exit criteria have been met.
     expansion and runtime arguments on arbitrary reference paths resolve forms
     such as `cards.3.pcm.default:CARD=3`; injected `card_name` evaluation lets
     the installed card-3 USB default reach its typed `empty -> asym` fallback
-    graph.)
+    graph. Typed graph nodes now expose `playback.pcm` and `capture.pcm`
+    branches as well as `slave.pcm`; injected `card_id` evaluation lets the
+    installed branches materialize through `plug -> dmix` for playback and
+    `plug -> dsnoop` for capture.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
