@@ -139,7 +139,10 @@ item does not imply that its phase exit criteria have been met.
     be materialized as typed plugin graphs with compound or named `slave.pcm`
     edges, preserved unknown plugins/fields, bounded depth, and cycle errors
     that include the complete active resolution chain; the installed default
-    materializes as `empty -> plug -> hw`.)
+    materializes as `empty -> plug -> hw`. Ordered system/application/user
+    configuration layers can be loaded hermetically with shared aggregate and
+    include-depth limits while retaining per-layer source locations and ALSA
+    merge/override precedence.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

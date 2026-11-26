@@ -83,7 +83,10 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 	// cards/aliases.conf is normally loaded lazily by alsa-lib's card hook. Add
 	// it explicitly here so this hermetic loader can exercise the installed
 	// default-device graph without executing hooks.
-	withAliases, err := Load(path, string(contents)+"\n<confdir:cards/aliases.conf>\n", resolver)
+	withAliases, err := LoadLayers([]Layer{
+		{Source: path, Contents: string(contents)},
+		{Source: "installed-card-aliases", Contents: "<confdir:cards/aliases.conf>"},
+	}, resolver)
 	if err != nil {
 		t.Fatalf("load installed aliases: %v", err)
 	}

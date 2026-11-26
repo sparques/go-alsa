@@ -56,3 +56,43 @@ func TestLoadWrapsResolverError(t *testing.T) {
 		t.Fatalf("Load error = %v; want wrapped resolver error", err)
 	}
 }
+
+func TestLoadLayersAppliesOrderedPrecedence(t *testing.T) {
+	layers := []Layer{
+		{Source: "system.conf", Contents: `pcm.default { type hw card 0 hint { description System } }`},
+		{Source: "application.conf", Contents: `pcm.default { device 1 }`},
+		{Source: "user.conf", Contents: `pcm.!default { type plug slave.pcm "hw:2,0" }`},
+	}
+	document, err := LoadLayers(layers, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := document.Effective("pcm.default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	typeValue, _ := compoundValue(value, "type")
+	slave, _ := compoundValue(value, "slave.pcm")
+	if typeValue.String != "plug" || slave.String != "hw:2,0" {
+		t.Fatalf("effective user override = %#v", value)
+	}
+	if value.Position.Source != "user.conf" {
+		t.Fatalf("effective source = %q", value.Position.Source)
+	}
+}
+
+func TestLoadLayersSharesIncludeState(t *testing.T) {
+	resolver := func(from, specification string) (string, string, error) {
+		return from + "/" + specification, "included 1", nil
+	}
+	document, err := LoadLayers([]Layer{
+		{Source: "system", Contents: "<common>"},
+		{Source: "user", Contents: "<common>"},
+	}, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(document.Statements) != 2 || document.Statements[0].Position.Source != "system/common" || document.Statements[1].Position.Source != "user/common" {
+		t.Fatalf("layered includes = %#v", document.Statements)
+	}
+}
