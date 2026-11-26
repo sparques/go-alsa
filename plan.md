@@ -142,7 +142,10 @@ item does not imply that its phase exit criteria have been met.
     materializes as `empty -> plug -> hw`. Ordered system/application/user
     configuration layers can be loaded hermetically with shared aggregate and
     include-depth limits while retaining per-layer source locations and ALSA
-    merge/override precedence.)
+    merge/override precedence. Named `ctl` templates share the PCM runtime
+    argument binder, preserve unknown control plugins/fields, convert `type=hw`
+    definitions to direct selectors, and can be opened through
+    `control.OpenNamed`; the installed `ctl.hw:3` resolves correctly.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

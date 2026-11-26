@@ -79,6 +79,14 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 	if selector != "hw:CARD=3,DEV=0,SUBDEV=-1" {
 		t.Fatalf("installed pcm.hw selector = %q", selector)
 	}
+	control, err := NewEvaluator(document, EvalOptions{}).ControlName("hw:3")
+	if err != nil {
+		t.Fatalf("evaluate installed ctl.hw: %v", err)
+	}
+	controlSelector, err := control.HardwareSelector()
+	if err != nil || controlSelector != "hw:CARD=3" {
+		t.Fatalf("installed ctl.hw selector = %q, %v", controlSelector, err)
+	}
 
 	// cards/aliases.conf is normally loaded lazily by alsa-lib's card hook. Add
 	// it explicitly here so this hermetic loader can exercise the installed

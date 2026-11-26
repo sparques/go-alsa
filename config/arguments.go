@@ -9,30 +9,39 @@ import (
 // PCMName evaluates a PCM invocation with optional runtime arguments, such as
 // hw:0,1, hw:CARD=0,DEV=1, or hw:{CARD 0 DEV 1}.
 func (e *Evaluator) PCMName(invocation string) (PCM, error) {
-	name, arguments, hasArguments, err := parsePCMInvocation(invocation)
+	evaluator, name, err := e.bindInvocation("pcm", "PCM", invocation)
 	if err != nil {
 		return PCM{}, err
 	}
+	return evaluator.PCM(name)
+}
+
+func (e *Evaluator) bindInvocation(namespace, label, invocation string) (*Evaluator, string, error) {
+	name, arguments, hasArguments, err := parseInvocation(invocation, label)
+	if err != nil {
+		return nil, "", err
+	}
 	path := name
-	if !strings.HasPrefix(path, "pcm.") {
-		path = "pcm." + path
+	prefix := namespace + "."
+	if !strings.HasPrefix(path, prefix) {
+		path = prefix + path
 	}
 	template, err := e.document.Effective(path)
 	if err != nil {
-		return PCM{}, err
+		return nil, "", err
 	}
 	if template.Kind != ValueCompound {
-		return PCM{}, fmt.Errorf("alsa config: PCM %q is not a compound template", name)
+		return nil, "", fmt.Errorf("alsa config: %s %q is not a compound template", label, name)
 	}
 	order, specs, err := argumentDefinitions(template)
 	if err != nil {
 		if !hasArguments && !hasArgumentList(template) {
-			return e.PCM(name)
+			return e, name, nil
 		}
-		return PCM{}, fmt.Errorf("alsa config: PCM %q arguments: %w", name, err)
+		return nil, "", fmt.Errorf("alsa config: %s %q arguments: %w", label, name, err)
 	}
 	if len(arguments.positional) > len(order) {
-		return PCM{}, fmt.Errorf("alsa config: PCM %q received %d positional arguments, accepts %d", name, len(arguments.positional), len(order))
+		return nil, "", fmt.Errorf("alsa config: %s %q received %d positional arguments, accepts %d", label, name, len(arguments.positional), len(order))
 	}
 	provided := make(map[string]Value, len(arguments.named)+len(arguments.positional))
 	for index, value := range arguments.positional {
@@ -40,10 +49,10 @@ func (e *Evaluator) PCMName(invocation string) (PCM, error) {
 	}
 	for key, value := range arguments.named {
 		if _, ok := specs[key]; !ok {
-			return PCM{}, fmt.Errorf("alsa config: PCM %q has no argument %q", name, key)
+			return nil, "", fmt.Errorf("alsa config: %s %q has no argument %q", label, name, key)
 		}
 		if _, duplicate := provided[key]; duplicate {
-			return PCM{}, fmt.Errorf("alsa config: PCM %q argument %q supplied twice", name, key)
+			return nil, "", fmt.Errorf("alsa config: %s %q argument %q supplied twice", label, name, key)
 		}
 		provided[key] = value
 	}
@@ -61,20 +70,20 @@ func (e *Evaluator) PCMName(invocation string) (PCM, error) {
 		if !ok {
 			fallback, exists := compoundValue(specs[key], "default")
 			if !exists {
-				return PCM{}, fmt.Errorf("alsa config: PCM %q argument %q is required", name, key)
+				return nil, "", fmt.Errorf("alsa config: %s %q argument %q is required", label, name, key)
 			}
 			value, err = argumentEvaluator.Value(fallback)
 			if err != nil {
-				return PCM{}, fmt.Errorf("alsa config: PCM %q default %q: %w", name, key, err)
+				return nil, "", fmt.Errorf("alsa config: %s %q default %q: %w", label, name, key, err)
 			}
 		}
 		value, err = coerceArgument(value, specs[key])
 		if err != nil {
-			return PCM{}, fmt.Errorf("alsa config: PCM %q argument %q: %w", name, key, err)
+			return nil, "", fmt.Errorf("alsa config: %s %q argument %q: %w", label, name, key, err)
 		}
 		argumentEvaluator.options.Variables[key] = value
 	}
-	return argumentEvaluator.PCM(name)
+	return argumentEvaluator, name, nil
 }
 
 func hasArgumentList(template Value) bool {
@@ -88,24 +97,28 @@ type invocationArguments struct {
 }
 
 func parsePCMInvocation(invocation string) (string, invocationArguments, bool, error) {
+	return parseInvocation(invocation, "PCM")
+}
+
+func parseInvocation(invocation, label string) (string, invocationArguments, bool, error) {
 	name, raw, found := strings.Cut(invocation, ":")
 	if name == "" {
-		return "", invocationArguments{}, false, fmt.Errorf("alsa config: empty PCM name")
+		return "", invocationArguments{}, false, fmt.Errorf("alsa config: empty %s name", label)
 	}
 	if !found {
 		return name, invocationArguments{}, false, nil
 	}
 	if raw == "" {
-		return "", invocationArguments{}, false, fmt.Errorf("alsa config: PCM %q has an empty argument list", name)
+		return "", invocationArguments{}, false, fmt.Errorf("alsa config: %s %q has an empty argument list", label, name)
 	}
 	result := invocationArguments{named: map[string]Value{}}
 	if strings.HasPrefix(strings.TrimSpace(raw), "{") {
 		value, err := parseInvocationValue(raw)
 		if err != nil {
-			return "", invocationArguments{}, false, fmt.Errorf("alsa config: PCM %q invalid braced arguments: %w", name, err)
+			return "", invocationArguments{}, false, fmt.Errorf("alsa config: %s %q invalid braced arguments: %w", label, name, err)
 		}
 		if value.Kind != ValueCompound {
-			return "", invocationArguments{}, false, fmt.Errorf("alsa config: PCM %q braced arguments are not a compound", name)
+			return "", invocationArguments{}, false, fmt.Errorf("alsa config: %s %q braced arguments are not a compound", label, name)
 		}
 		for _, statement := range value.Entries {
 			if statement.Assignment == nil {
