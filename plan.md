@@ -186,7 +186,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add a configurable precomputed Blackman-windowed sinc converter with
     anti-alias cutoff, exact rational block frame accounting, interleaved
     multichannel support, and allocation-free conversion after setup.
-    (Streaming boundary history and latency accounting remain.)
+  - [x] Add allocation-free streaming sinc state with rational phase
+    continuity, FIR history across arbitrary chunks, explicit source/output
+    latency, deterministic reset, and zero-padded flush matching block output.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
