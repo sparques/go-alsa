@@ -113,9 +113,9 @@ func (p *parser) array(depth int) ([]Value, error) {
 func scalarValue(text string, position Position) Value {
 	switch strings.ToLower(text) {
 	case "true", "yes", "on":
-		return Value{Kind: ValueBoolean, Position: position, Boolean: true}
+		return Value{Kind: ValueBoolean, Position: position, String: strings.ToLower(text), Boolean: true}
 	case "false", "no", "off":
-		return Value{Kind: ValueBoolean, Position: position, Boolean: false}
+		return Value{Kind: ValueBoolean, Position: position, String: strings.ToLower(text), Boolean: false}
 	}
 	if integer, err := strconv.ParseInt(text, 0, 64); err == nil {
 		return Value{Kind: ValueInteger, Position: position, Integer: integer}

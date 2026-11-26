@@ -21,6 +21,9 @@ type EvalOptions struct {
 	// CardNumber resolves a stable ALSA card ID for functions such as
 	// card_inum. Numeric card selectors do not require this callback.
 	CardNumber func(card string) (number int64, err error)
+	// CardName supplies alsa-lib's configuration card_name value for a numeric
+	// or stable selector. It is never discovered implicitly.
+	CardName func(card string) (name string, err error)
 	// Cards supplies kernel card number/driver pairs to declarative
 	// load_for_all_cards hooks. No discovery is performed implicitly.
 	Cards          []HookCard
@@ -66,10 +69,63 @@ func (e *Evaluator) reference(name string, active map[string]bool, depth int) (V
 	active[name] = true
 	defer delete(active, name)
 	value, err := e.document.Effective(name)
+	if errors.Is(err, ErrNotFound) {
+		resolved, ok, resolveErr := e.expandReferenceName(name)
+		if resolveErr != nil {
+			return Value{}, resolveErr
+		}
+		if ok {
+			evaluator, path, bindErr := e.bindPath("", "reference", resolved)
+			if bindErr != nil {
+				return Value{}, bindErr
+			}
+			return evaluator.reference(path, active, depth+1)
+		}
+	}
 	if err != nil {
 		return Value{}, err
 	}
 	return e.value(value, active, depth+1)
+}
+
+func (e *Evaluator) expandReferenceName(name string) (string, bool, error) {
+	base, arguments, hasArguments := strings.Cut(name, ":")
+	changed := false
+	seen := map[string]bool{}
+	for steps := 0; steps <= maximumEvaluationDepth; steps++ {
+		if seen[base] {
+			return "", false, fmt.Errorf("alsa config: alias cycle while resolving %q", name)
+		}
+		seen[base] = true
+		parts := strings.Split(base, ".")
+		replaced := false
+		for count := len(parts) - 1; count > 0; count-- {
+			prefix := strings.Join(parts[:count], ".")
+			value, err := e.document.Effective(prefix)
+			if err != nil {
+				if errors.Is(err, ErrNotFound) {
+					continue
+				}
+				return "", false, err
+			}
+			if value.Kind != ValueString || !looksLikePath(value.String) {
+				continue
+			}
+			base = value.String
+			if count < len(parts) {
+				base += "." + strings.Join(parts[count:], ".")
+			}
+			changed, replaced = true, true
+			break
+		}
+		if !replaced {
+			if hasArguments {
+				return base + ":" + arguments, true, nil
+			}
+			return base, changed, nil
+		}
+	}
+	return "", false, fmt.Errorf("alsa config: alias nesting exceeds %d", maximumEvaluationDepth)
 }
 
 func (e *Evaluator) value(value Value, active map[string]bool, depth int) (Value, error) {
@@ -204,6 +260,24 @@ func (e *Evaluator) function(name string, compound Value, active map[string]bool
 			return Value{}, fmt.Errorf("alsa config: card_inum resolved negative card %d", number)
 		}
 		return Value{Kind: ValueInteger, Position: compound.Position, Integer: number}, nil
+	case "card_name":
+		card, ok := compoundValue(compound, "card")
+		if !ok {
+			return Value{}, fmt.Errorf("alsa config: card_name requires a card")
+		}
+		evaluated, err := e.value(card, active, depth+1)
+		if err != nil {
+			return Value{}, fmt.Errorf("alsa config: card_name card: %w", err)
+		}
+		selector, err := scalarText(evaluated)
+		if err != nil || selector == "" || e.options.CardName == nil {
+			return Value{}, fmt.Errorf("alsa config: card_name cannot resolve card %q", selector)
+		}
+		name, err := e.options.CardName(selector)
+		if err != nil || name == "" {
+			return Value{}, fmt.Errorf("alsa config: card_name resolve card %q: %w", selector, err)
+		}
+		return Value{Kind: ValueString, Position: compound.Position, String: name}, nil
 	case "datadir":
 		if e.options.DataDir == "" {
 			return Value{}, fmt.Errorf("alsa config: datadir was not provided")
@@ -301,6 +375,9 @@ func scalarText(value Value) (string, error) {
 	case ValueReal:
 		return strconv.FormatFloat(value.Real, 'g', -1, 64), nil
 	case ValueBoolean:
+		if value.String != "" {
+			return value.String, nil
+		}
 		return strconv.FormatBool(value.Boolean), nil
 	default:
 		return "", fmt.Errorf("value is not scalar")

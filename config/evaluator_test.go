@@ -55,6 +55,59 @@ stable { @func card_inum card USB }`)
 	}
 }
 
+func TestEvaluatorCardName(t *testing.T) {
+	document, err := Parse("test", `value { @func card_name card 3 }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluator := NewEvaluator(document, EvalOptions{CardName: func(card string) (string, error) {
+		if card != "3" {
+			t.Fatalf("card name resolver received %q", card)
+		}
+		return "USB Device", nil
+	}})
+	value, err := evaluator.Reference("value")
+	if err != nil || value.String != "USB Device" {
+		t.Fatalf("card_name = %#v, %v", value, err)
+	}
+}
+
+func TestEvaluatorAliasPrefixWithRuntimeArguments(t *testing.T) {
+	document, err := Parse("test", `cards.3 cards.Driver
+cards.Driver.pcm.default {
+ @args [ CARD ]
+ @args.CARD { type string }
+ type hw
+ card $CARD
+}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := NewEvaluator(document, EvalOptions{}).Reference("cards.3.pcm.default:CARD=3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	card, ok := compoundValue(value, "card")
+	if !ok || card.String != "3" {
+		t.Fatalf("aliased runtime reference = %#v", value)
+	}
+}
+
+func TestEvaluatorPreservesBooleanSpellingInStringContext(t *testing.T) {
+	document, err := Parse("test", `yes_value { @func concat strings [ prefix_ yes ] }
+on_value { @func concat strings [ prefix_ on ] }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluator := NewEvaluator(document, EvalOptions{})
+	for name, want := range map[string]string{"yes_value": "prefix_yes", "on_value": "prefix_on"} {
+		value, err := evaluator.Reference(name)
+		if err != nil || value.String != want {
+			t.Errorf("Reference(%q) = %#v, %v; want %q", name, value, err, want)
+		}
+	}
+}
+
 func TestEvaluatorDefaultsAndUnsupportedFunctions(t *testing.T) {
 	document, err := Parse("test", `fallback { @func getenv vars [ ABSENT ] default "safe" }
 dynamic { @func refer name { @func concat strings [ target .value ] } }

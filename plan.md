@@ -152,7 +152,11 @@ item does not imply that its phase exit criteria have been met.
     treated as compatible. Caller-injected card number/driver pairs enable the
     pure `load_for_all_cards`, `private_integer`, and `private_string` subset,
     including confined driver-file loading and `cards.NUMBER` aliases; the
-    installed USB-Audio card-3 path exercises this hook.)
+    installed USB-Audio card-3 path exercises this hook. Bounded prefix-alias
+    expansion and runtime arguments on arbitrary reference paths resolve forms
+    such as `cards.3.pcm.default:CARD=3`; injected `card_name` evaluation lets
+    the installed card-3 USB default reach its typed `empty -> asym` fallback
+    graph.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

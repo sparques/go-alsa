@@ -60,9 +60,11 @@ func LoadHooks(document *Document, hookPath string, options EvalOptions, resolve
 				cardOptions := options
 				cardOptions.privateString = &card.Driver
 				cardOptions.privateInteger = &card.Number
+				firstLoaded := len(loader.result.Statements)
 				if err := loader.loadFiles(hook, NewEvaluator(document, cardOptions)); err != nil {
 					return HookLoadResult{}, err
 				}
+				prefixStatements(loader.result.Statements[firstLoaded:], root)
 				name := root + "." + strconv.FormatInt(card.Number, 10)
 				value := root + "." + card.Driver
 				loader.result.Statements = append(loader.result.Statements, Statement{Position: hook.Position,
@@ -74,6 +76,20 @@ func LoadHooks(document *Document, hookPath string, options EvalOptions, resolve
 		}
 	}
 	return HookLoadResult{Document: result, Skipped: skipped}, nil
+}
+
+func prefixStatements(statements []Statement, root string) {
+	if root == "" {
+		return
+	}
+	for index := range statements {
+		assignment := statements[index].Assignment
+		if assignment == nil {
+			continue
+		}
+		assignment.Name = root + "." + assignment.Name
+		assignment.Path = append([]string{root}, assignment.Path...)
+	}
 }
 
 type hookLoader struct {

@@ -12,7 +12,7 @@ func TestLoadHooksAppliesOnlyDeclarativeLoads(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "aliases.conf"), []byte("alias.value 7"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "USB-Audio.conf"), []byte("cards.USB-Audio.loaded true"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "USB-Audio.conf"), []byte("USB-Audio.loaded true"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	document, err := Parse("base", `cards.@hooks [

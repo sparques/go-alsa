@@ -17,13 +17,16 @@ func (e *Evaluator) PCMName(invocation string) (PCM, error) {
 }
 
 func (e *Evaluator) bindInvocation(namespace, label, invocation string) (*Evaluator, string, error) {
+	return e.bindPath(namespace+".", label, invocation)
+}
+
+func (e *Evaluator) bindPath(prefix, label, invocation string) (*Evaluator, string, error) {
 	name, arguments, hasArguments, err := parseInvocation(invocation, label)
 	if err != nil {
 		return nil, "", err
 	}
 	path := name
-	prefix := namespace + "."
-	if !strings.HasPrefix(path, prefix) {
+	if prefix != "" && !strings.HasPrefix(path, prefix) {
 		path = prefix + path
 	}
 	template, err := e.document.Effective(path)
