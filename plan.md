@@ -166,7 +166,10 @@ item does not imply that its phase exit criteria have been met.
     materialize bounded, cycle-checked `empty -> child` graphs;
     `control.OpenNamed` traverses `empty` to `hw` and returns its own typed,
     source-located unsupported-plugin error for server plugins. The installed
-    card-3 control default resolves as `empty -> hw`.)
+    card-3 control default resolves as `empty -> hw`. `config.LoadTree` now
+    composes confined includes, safe standard hooks, caller-injected cards,
+    and ordered override layers from an explicit root/main policy; it performs
+    no implicit host, user, environment, or hardware discovery.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

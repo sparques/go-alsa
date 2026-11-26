@@ -55,18 +55,18 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 	if root == "" || path == "" {
 		t.Skip("set GO_ALSA_TEST_CONFIG_ROOT and GO_ALSA_TEST_CONFIG")
 	}
-	resolver, err := NewDirectoryResolver(root)
+	tree, err := LoadTree(TreeOptions{
+		Root: root,
+		Main: path,
+		Eval: EvalOptions{Cards: []HookCard{{Number: 3, Driver: "USB-Audio"}}},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
+	if len(tree.SkippedHooks) != 0 {
+		t.Fatalf("installed skipped hooks = %v", tree.SkippedHooks)
 	}
-	document, err := Load(path, string(contents), resolver)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document := tree.Document
 	t.Logf("loaded %s into %d expanded statements", path, len(document.Statements))
 	definition, err := NewEvaluator(document, EvalOptions{}).PCMName("hw:3,0")
 	if err != nil {
@@ -88,29 +88,7 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 		t.Fatalf("installed ctl.hw selector = %q, %v", controlSelector, err)
 	}
 
-	// Apply the optional top-level override hook through the confined resolver;
-	// host paths outside root are ignored because this hook declares errors=false.
-	topHooks, err := LoadHooks(document, "@hooks", EvalOptions{DataDir: root}, resolver)
-	if err != nil {
-		t.Fatalf("load installed top-level hooks: %v", err)
-	}
-	if len(topHooks.Skipped) != 0 {
-		t.Fatalf("installed skipped top-level hooks = %v", topHooks.Skipped)
-	}
-
-	// Apply only the declarative card load hook. The driver-specific
-	// load_for_all_cards hook remains explicit and is reported as skipped.
-	hooks, err := LoadHooks(topHooks.Document, "cards.@hooks", EvalOptions{
-		DataDir: root,
-		Cards:   []HookCard{{Number: 3, Driver: "USB-Audio"}},
-	}, resolver)
-	if err != nil {
-		t.Fatalf("load installed card hooks: %v", err)
-	}
-	if len(hooks.Skipped) != 0 {
-		t.Fatalf("installed skipped hooks = %v", hooks.Skipped)
-	}
-	withAliases := hooks.Document
+	withAliases := document
 	controlGraph, err := NewEvaluator(withAliases, EvalOptions{}).ControlGraph("default:CARD=3")
 	if err != nil {
 		t.Fatalf("materialize installed card-specific control: %v", err)
