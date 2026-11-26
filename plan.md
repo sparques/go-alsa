@@ -196,6 +196,10 @@ item does not imply that its phase exit criteria have been met.
     application/hardware parameter domains, reverses the pipeline for capture,
     and supplies documented default identity/duplication/averaging/silence
     channel policy. (Graph negotiation and hardware I/O integration remain.)
+  - [x] Compile direction-selected named graphs through `empty`, `asym`, and
+    `plug` nodes to a direct hardware selector, retaining source-located plugin
+    chains and deferring converter construction until application and hardware
+    parameters are both known. (Hardware negotiation/I/O integration remains.)
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**

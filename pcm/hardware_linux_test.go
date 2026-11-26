@@ -123,6 +123,48 @@ func TestOpenNamedRoutingHardware(t *testing.T) {
 	}
 }
 
+func TestPlanNamedPlugHardware(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_PCM")
+	if name == "" {
+		t.Skip("set GO_ALSA_TEST_PCM to a direct hw: PCM name")
+	}
+	address, err := alsa.ParseHardwareAddress(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := alsaconfig.Parse("test", `pcm.plughw {
+ @args [ CARD DEV SUBDEV ]
+ @args.CARD { type string }
+ @args.DEV { type integer default 0 }
+ @args.SUBDEV { type integer default -1 }
+ type plug
+ slave.pcm { type hw card $CARD device $DEV subdevice $SUBDEV }
+}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invocation := fmt.Sprintf("plughw:CARD=%s,DEV=%d,SUBDEV=%d", address.Card, address.Device, address.Subdevice)
+	stream := alsa.Playback
+	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
+		stream = alsa.Capture
+	}
+	plan, err := PlanNamed(alsaconfig.NewEvaluator(document, alsaconfig.EvalOptions{}), invocation, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !plan.RequiresPlug {
+		t.Fatal("plughw plan did not retain plug stage")
+	}
+	handle, err := OpenHardware(plan.HardwareSelector, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	if handle.Info().Device != address.Device {
+		t.Fatalf("opened info = %#v", handle.Info())
+	}
+}
+
 func TestCaptureXRUNRecovery(t *testing.T) {
 	name := os.Getenv("GO_ALSA_TEST_PCM")
 	if name == "" || os.Getenv("GO_ALSA_TEST_XRUN") != "1" || os.Getenv("GO_ALSA_TEST_PCM_STREAM") != "capture" {
