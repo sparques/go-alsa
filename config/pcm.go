@@ -39,7 +39,7 @@ func (p PCM) HardwareSelector() (string, error) {
 	selector := fmt.Sprintf("hw:CARD=%s,DEV=%d", cardText, device)
 	if value, exists := p.Fields["subdevice"]; exists {
 		subdevice, subErr := pcmFieldInteger(value)
-		if subErr != nil || subdevice < 0 {
+		if subErr != nil || subdevice < -1 {
 			return "", fmt.Errorf("alsa config: PCM %q has invalid subdevice", p.Name)
 		}
 		selector += fmt.Sprintf(",SUBDEV=%d", subdevice)

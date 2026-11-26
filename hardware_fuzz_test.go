@@ -28,7 +28,7 @@ func FuzzParseHardwareAddress(f *testing.F) {
 		if address.Card == "" {
 			t.Fatalf("ParseHardwareAddress(%q) returned an empty card", name)
 		}
-		if address.Device < 0 || address.Subdevice < 0 {
+		if address.Device < 0 || address.Subdevice < -1 {
 			t.Fatalf("ParseHardwareAddress(%q) returned negative indices: %#v", name, address)
 		}
 	})

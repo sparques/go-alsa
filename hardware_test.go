@@ -11,9 +11,11 @@ func TestParseHardwareAddress(t *testing.T) {
 		name string
 		want HardwareAddress
 	}{
-		{"hw:0,1", HardwareAddress{Card: "0", Device: 1}},
+		{"hw:0,1", HardwareAddress{Card: "0", Device: 1, Subdevice: -1}},
 		{"hw:2,3,4", HardwareAddress{Card: "2", Device: 3, Subdevice: 4}},
-		{"hw:CARD=Radio,DEV=0", HardwareAddress{Card: "Radio", Device: 0}},
+		{"hw:2,3,-1", HardwareAddress{Card: "2", Device: 3, Subdevice: -1}},
+		{"hw:CARD=Radio,DEV=0", HardwareAddress{Card: "Radio", Device: 0, Subdevice: -1}},
+		{"hw:CARD=Radio,DEV=0,SUBDEV=-1", HardwareAddress{Card: "Radio", Device: 0, Subdevice: -1}},
 		{"hw:CARD=USB-Audio_1,DEV=2,SUBDEV=3", HardwareAddress{Card: "USB-Audio_1", Device: 2, Subdevice: 3}},
 	}
 	for _, test := range tests {
@@ -30,7 +32,7 @@ func TestParseHardwareAddressRejectsMalformedNames(t *testing.T) {
 	t.Parallel()
 	names := []string{
 		"", "default", "plughw:0,0", "hw:", "hw:0", "hw:-1,0",
-		"hw:0,-1", "hw:0,0,-1", "hw:0,DEV=0", "hw:CARD=Radio",
+		"hw:0,-1", "hw:0,0,-2", "hw:0,DEV=0", "hw:CARD=Radio",
 		"hw:CARD=Radio,DEV=0,DEV=1", "hw:CARD=Radio,DEVICE=0",
 		"hw:CARD=bad/card,DEV=0", "hw: 0,0",
 	}

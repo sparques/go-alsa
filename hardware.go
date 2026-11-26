@@ -8,8 +8,9 @@ import (
 )
 
 // HardwareAddress is a parsed direct-kernel ALSA PCM name. Card is either a
-// decimal kernel card number or a stable kernel card ID. Device is required;
-// Subdevice defaults to zero.
+// decimal kernel card number or a stable kernel card ID. Device is required.
+// A Subdevice of -1 asks the kernel to choose an available subdevice and is
+// the default produced by ParseHardwareAddress when SUBDEV is omitted.
 type HardwareAddress struct {
 	Card      string
 	Device    int
@@ -67,11 +68,11 @@ func parsePositionalHardwareAddress(name string, parts []string) (HardwareAddres
 	if err != nil {
 		return HardwareAddress{}, malformedAddress(name, "device must be a non-negative integer")
 	}
-	address := HardwareAddress{Card: parts[0], Device: device}
+	address := HardwareAddress{Card: parts[0], Device: device, Subdevice: -1}
 	if len(parts) == 3 {
-		address.Subdevice, err = nonnegativeInteger(parts[2])
+		address.Subdevice, err = subdeviceInteger(parts[2])
 		if err != nil {
-			return HardwareAddress{}, malformedAddress(name, "subdevice must be a non-negative integer")
+			return HardwareAddress{}, malformedAddress(name, "subdevice must be -1 or a non-negative integer")
 		}
 	}
 	return address, nil
@@ -102,11 +103,11 @@ func parseNamedHardwareAddress(name string, parts []string) (HardwareAddress, er
 	if err != nil {
 		return HardwareAddress{}, malformedAddress(name, "DEV must be a non-negative integer")
 	}
-	address := HardwareAddress{Card: values["CARD"], Device: device}
+	address := HardwareAddress{Card: values["CARD"], Device: device, Subdevice: -1}
 	if value, exists := values["SUBDEV"]; exists {
-		address.Subdevice, err = nonnegativeInteger(value)
+		address.Subdevice, err = subdeviceInteger(value)
 		if err != nil {
-			return HardwareAddress{}, malformedAddress(name, "SUBDEV must be a non-negative integer")
+			return HardwareAddress{}, malformedAddress(name, "SUBDEV must be -1 or a non-negative integer")
 		}
 	}
 	return address, nil
@@ -128,6 +129,13 @@ func validateCardSelector(value string) error {
 		}
 	}
 	return nil
+}
+
+func subdeviceInteger(value string) (int, error) {
+	if value == "-1" {
+		return -1, nil
+	}
+	return nonnegativeInteger(value)
 }
 
 func nonnegativeInteger(value string) (int, error) {
@@ -201,7 +209,7 @@ func resolveHardwarePCM(address HardwareAddress, stream Stream, cards []Card, pc
 		if pcm.Stream != stream {
 			continue
 		}
-		if address.Subdevice >= pcm.Subdevices {
+		if address.Subdevice < -1 || address.Subdevice >= pcm.Subdevices {
 			return ResolvedPCM{}, &DeviceError{Op: "resolve", Device: name, Err: ErrSubdeviceUnavailable}
 		}
 		address.Card = strconv.Itoa(cardNumber)

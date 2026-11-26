@@ -68,4 +68,15 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("loaded %s into %d expanded statements", path, len(document.Statements))
+	definition, err := NewEvaluator(document, EvalOptions{}).PCMName("hw:3,0")
+	if err != nil {
+		t.Fatalf("evaluate installed pcm.hw: %v", err)
+	}
+	selector, err := definition.HardwareSelector()
+	if err != nil {
+		t.Fatalf("installed pcm.hw selector: %v", err)
+	}
+	if selector != "hw:CARD=3,DEV=0,SUBDEV=-1" {
+		t.Fatalf("installed pcm.hw selector = %q", selector)
+	}
 }
