@@ -183,6 +183,10 @@ item does not imply that its phase exit criteria have been met.
   - [x] Compose integer decoding, channel matrices, and encoding into a
     caller-scratch, allocation-free interleaved conversion pipeline with
     explicit size/overflow validation.
+  - [x] Add a configurable precomputed Blackman-windowed sinc converter with
+    anti-alias cutoff, exact rational block frame accounting, interleaved
+    multichannel support, and allocation-free conversion after setup.
+    (Streaming boundary history and latency accounting remain.)
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
