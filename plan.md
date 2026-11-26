@@ -192,6 +192,10 @@ item does not imply that its phase exit criteria have been met.
   - [x] Compose byte-format decoding, channel routing, continuous sinc
     resampling, and destination encoding into a caller-scratch streaming stage
     with exact pending/flush sizing and no processing-time allocation.
+  - [x] Add a direction-aware plug conversion plan that preserves separate
+    application/hardware parameter domains, reverses the pipeline for capture,
+    and supplies documented default identity/duplication/averaging/silence
+    channel policy. (Graph negotiation and hardware I/O integration remain.)
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
