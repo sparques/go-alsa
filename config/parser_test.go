@@ -41,11 +41,21 @@ pcm.!default {
 }
 
 func TestAssignmentModes(t *testing.T) {
-	for raw, want := range map[string]AssignmentMode{"pcm.!default": AssignOverride, "?defaults.foo": AssignDefault, "cards.+x": AssignMerge, "-obsolete": AssignRemove, "normal": AssignNormal} {
+	for raw, want := range map[string]AssignmentMode{"pcm.!default": AssignOverride, "?defaults.foo": AssignNoOverride, "cards.+x": AssignMergeCreate, "-existing": AssignMerge, "normal": AssignMergeCreate} {
 		_, _, got := assignmentName(raw, false)
 		if got != want {
 			t.Errorf("assignmentName(%q) mode = %v; want %v", raw, got, want)
 		}
+	}
+}
+
+func TestParseEqualSeparators(t *testing.T) {
+	document, err := Parse("test", "a=1; b = { c=2 };")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(document.Statements) != 2 || document.Statements[0].Assignment.Value.Integer != 1 || document.Statements[1].Assignment.Value.Entries[0].Assignment.Value.Integer != 2 {
+		t.Fatalf("document = %#v", document)
 	}
 }
 

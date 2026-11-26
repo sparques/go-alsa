@@ -47,6 +47,9 @@ func (p *parser) statements(end tokenKind, depth int) ([]Statement, error) {
 		if name == "" {
 			return nil, p.error(tok, "empty configuration key")
 		}
+		if p.peek().Kind == tokenEqual {
+			p.index++
+		}
 		value, err := p.value(depth + 1)
 		if err != nil {
 			return nil, err
@@ -126,7 +129,7 @@ func scalarValue(text string, position Position) Value {
 }
 
 func assignmentName(raw string, literal bool) (string, []string, AssignmentMode) {
-	mode := AssignNormal
+	mode := AssignMergeCreate
 	parts := []string{raw}
 	if !literal {
 		parts = strings.Split(raw, ".")
@@ -139,11 +142,11 @@ func assignmentName(raw string, literal bool) (string, []string, AssignmentMode)
 		case '!':
 			mode, parts[index] = AssignOverride, part[1:]
 		case '?':
-			mode, parts[index] = AssignDefault, part[1:]
+			mode, parts[index] = AssignNoOverride, part[1:]
 		case '+':
-			mode, parts[index] = AssignMerge, part[1:]
+			mode, parts[index] = AssignMergeCreate, part[1:]
 		case '-':
-			mode, parts[index] = AssignRemove, part[1:]
+			mode, parts[index] = AssignMerge, part[1:]
 		default:
 			continue
 		}

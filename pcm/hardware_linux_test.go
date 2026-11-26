@@ -5,6 +5,7 @@ package pcm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"syscall"
 	"testing"
@@ -55,6 +56,10 @@ func TestOpenNamedHardware(t *testing.T) {
 		t.Fatal(err)
 	}
 	document, err := alsaconfig.Parse("test", `pcm.test {
+	@args [ CARD DEV SUBDEV ]
+	@args.CARD { type string }
+	@args.DEV { type integer default 0 }
+	@args.SUBDEV { type integer default 0 }
  type hw
  card $CARD
  device $DEV
@@ -63,16 +68,13 @@ func TestOpenNamedHardware(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	evaluator := alsaconfig.NewEvaluator(document, alsaconfig.EvalOptions{Variables: map[string]alsaconfig.Value{
-		"CARD":   {Kind: alsaconfig.ValueString, String: address.Card},
-		"DEV":    {Kind: alsaconfig.ValueInteger, Integer: int64(address.Device)},
-		"SUBDEV": {Kind: alsaconfig.ValueInteger, Integer: int64(address.Subdevice)},
-	}})
+	evaluator := alsaconfig.NewEvaluator(document, alsaconfig.EvalOptions{})
+	invocation := fmt.Sprintf("test:CARD=%s,DEV=%d,SUBDEV=%d", address.Card, address.Device, address.Subdevice)
 	stream := alsa.Playback
 	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
 		stream = alsa.Capture
 	}
-	handle, err := OpenNamed(evaluator, "test", stream)
+	handle, err := OpenNamed(evaluator, invocation, stream)
 	if err != nil {
 		t.Fatal(err)
 	}

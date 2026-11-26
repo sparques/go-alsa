@@ -112,7 +112,10 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add a location-aware bounded lexer for real-world ALSA words, quoted
     strings/escapes, comments, includes, compound delimiters, and modifiers.
   - [x] Parse ordered includes/assignments, compound nodes, arrays, assignment
-    modes, typed scalar values, and source locations with bounded nesting.
+    modes (merge-create, merge-only, no-override, override), optional `=`, typed
+    scalar values, and source locations with bounded nesting.
+  - [x] Apply libasound-compatible assignment modes with recursive compound
+    merging, existence checks, no-override behavior, replacement, and type checks.
   - [ ] Evaluate includes, references, variables, functions, and named devices.
     (Recursive include expansion is implemented through an injected resolver,
     with stable source locations, cycle/depth detection, aggregate limits, and
@@ -122,7 +125,10 @@ item does not imply that its phase exit criteria have been met.
     `refer`, `concat`, `getenv`, and `igetenv` functions. Named PCM definitions
     can be materialized with evaluated template arguments and preserved fields;
     evaluated `type=hw` definitions convert to direct selectors and can be
-    opened through `pcm.OpenNamed`.)
+    opened through `pcm.OpenNamed`. Positional, named, and braced runtime PCM
+    arguments are validated against `@args` order, types, and defaults; named
+    runtime arguments have also opened the card-3 C-Media device in an opt-in
+    hardware test.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

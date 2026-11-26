@@ -16,7 +16,7 @@ func OpenNamed(evaluator *alsaconfig.Evaluator, name string, stream alsa.Stream)
 	if evaluator == nil {
 		return nil, errors.New("alsa pcm: named open requires a configuration evaluator")
 	}
-	definition, err := evaluator.PCM(name)
+	definition, err := evaluator.PCMName(name)
 	if err != nil {
 		return nil, err
 	}

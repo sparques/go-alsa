@@ -90,6 +90,16 @@ func TestLexRejectsUnterminatedValues(t *testing.T) {
 	}
 }
 
+func TestLexQuotedLineSplicing(t *testing.T) {
+	tokens, err := lex("name \"John \\\nSmith\"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tokens) < 3 || tokens[1].Text != "John Smith" {
+		t.Fatalf("tokens = %#v", tokens)
+	}
+}
+
 func FuzzLex(f *testing.F) {
 	for _, seed := range []string{"pcm.hw { type hw card 0 }", "<confdir:pcm/front.conf>", "@hooks [ { func load } ]", "x \"a\\nb\"", "# comment\n"} {
 		f.Add(seed)

@@ -18,6 +18,7 @@ const (
 	tokenRightBracket
 	tokenComma
 	tokenSemicolon
+	tokenEqual
 )
 
 type position struct {
@@ -95,6 +96,9 @@ func (l *lexer) next() (token, error) {
 	case ';':
 		l.advance()
 		return token{Kind: tokenSemicolon, Text: ";", Position: start}, nil
+	case '=':
+		l.advance()
+		return token{Kind: tokenEqual, Text: "=", Position: start}, nil
 	case '\'', '"':
 		text, err := l.quoted(character, start)
 		return token{Kind: tokenString, Text: text, Position: start}, err
@@ -135,6 +139,15 @@ func (l *lexer) quoted(quote byte, start position) (string, error) {
 		}
 		escaped := l.input[l.offset]
 		l.advance()
+		if escaped == '\n' {
+			continue
+		}
+		if escaped == '\r' {
+			if l.offset < len(l.input) && l.input[l.offset] == '\n' {
+				l.advance()
+			}
+			continue
+		}
 		switch escaped {
 		case 'n':
 			result = append(result, '\n')
@@ -210,9 +223,9 @@ func (l *lexer) position() position {
 }
 
 func isSpace(character byte) bool {
-	return character == ' ' || character == '\t' || character == '\r' || character == '\n'
+	return character == ' ' || character == '\t' || character == '\v' || character == '\f' || character == '\r' || character == '\n'
 }
 
 func isDelimiter(character byte) bool {
-	return isSpace(character) || character == '{' || character == '}' || character == '[' || character == ']' || character == ',' || character == ';' || character == '\'' || character == '"' || character == '<' || character == '#'
+	return isSpace(character) || character == '{' || character == '}' || character == '[' || character == ']' || character == ',' || character == ';' || character == '=' || character == '\'' || character == '"' || character == '<' || character == '#'
 }

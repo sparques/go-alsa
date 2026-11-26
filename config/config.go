@@ -14,11 +14,13 @@ type Position struct {
 type AssignmentMode uint8
 
 const (
-	AssignNormal   AssignmentMode = iota
-	AssignOverride                // !name
-	AssignDefault                 // ?name
-	AssignMerge                   // +name
-	AssignRemove                  // -name
+	AssignMergeCreate AssignmentMode = iota // default and +name
+	AssignMerge                             // -name; existing node required
+	AssignNoOverride                        // ?name
+	AssignOverride                          // !name
+
+	AssignNormal  = AssignMergeCreate
+	AssignDefault = AssignNoOverride
 )
 
 // ValueKind identifies a parsed value without applying configuration policy.

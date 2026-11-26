@@ -21,13 +21,12 @@ func (d *Document) resolveReference(name string, active map[string]bool, depth i
 	if active[name] {
 		return Value{}, fmt.Errorf("alsa config: reference cycle at %q", name)
 	}
-	assignment, ok := d.Lookup(name)
-	if !ok {
-		return Value{}, fmt.Errorf("alsa config: reference %q not found", name)
-	}
 	active[name] = true
 	defer delete(active, name)
-	value := assignment.Value
+	value, err := d.Effective(name)
+	if err != nil {
+		return Value{}, err
+	}
 	if target, ok := referTarget(value); ok {
 		return d.resolveReference(target, active, depth+1)
 	}

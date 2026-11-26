@@ -51,13 +51,13 @@ func (e *Evaluator) reference(name string, active map[string]bool, depth int) (V
 	if active[name] {
 		return Value{}, fmt.Errorf("alsa config: evaluation cycle at %q", name)
 	}
-	assignment, ok := e.document.Lookup(name)
-	if !ok {
-		return Value{}, fmt.Errorf("alsa config: reference %q not found", name)
-	}
 	active[name] = true
 	defer delete(active, name)
-	return e.value(assignment.Value, active, depth+1)
+	value, err := e.document.Effective(name)
+	if err != nil {
+		return Value{}, err
+	}
+	return e.value(value, active, depth+1)
 }
 
 func (e *Evaluator) value(value Value, active map[string]bool, depth int) (Value, error) {
