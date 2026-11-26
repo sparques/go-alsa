@@ -177,6 +177,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add allocation-free integer sample decode/encode/conversion primitives
     for supported 8/16/24/32-bit signed/unsigned, little/big-endian, packed and
     container formats using a signed Q1.31 intermediate representation.
+  - [x] Add allocation-free interleaved channel matrices with Q2.30 gains,
+    saturation, arbitrary mapping/mixing, duplication, averaging, and silence
+    insertion.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
