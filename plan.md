@@ -148,8 +148,11 @@ item does not imply that its phase exit criteria have been met.
     `control.OpenNamed`; the installed `ctl.hw:3` resolves correctly. Pure
     `datadir` and declarative `func load` hooks can be applied through a
     caller-confined resolver; unsupported hooks such as
-    `load_for_all_cards` are reported rather than executed or silently treated
-    as compatible, and the installed default graph now uses this hook path.)
+    unknown hook functions are reported rather than executed or silently
+    treated as compatible. Caller-injected card number/driver pairs enable the
+    pure `load_for_all_cards`, `private_integer`, and `private_string` subset,
+    including confined driver-file loading and `cards.NUMBER` aliases; the
+    installed USB-Audio card-3 path exercises this hook.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**

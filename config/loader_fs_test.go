@@ -100,11 +100,14 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 
 	// Apply only the declarative card load hook. The driver-specific
 	// load_for_all_cards hook remains explicit and is reported as skipped.
-	hooks, err := LoadHooks(topHooks.Document, "cards.@hooks", EvalOptions{DataDir: root}, resolver)
+	hooks, err := LoadHooks(topHooks.Document, "cards.@hooks", EvalOptions{
+		DataDir: root,
+		Cards:   []HookCard{{Number: 3, Driver: "USB-Audio"}},
+	}, resolver)
 	if err != nil {
 		t.Fatalf("load installed card hooks: %v", err)
 	}
-	if len(hooks.Skipped) != 1 || hooks.Skipped[0] != "load_for_all_cards" {
+	if len(hooks.Skipped) != 0 {
 		t.Fatalf("installed skipped hooks = %v", hooks.Skipped)
 	}
 	withAliases := hooks.Document

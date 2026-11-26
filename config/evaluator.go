@@ -21,6 +21,11 @@ type EvalOptions struct {
 	// CardNumber resolves a stable ALSA card ID for functions such as
 	// card_inum. Numeric card selectors do not require this callback.
 	CardNumber func(card string) (number int64, err error)
+	// Cards supplies kernel card number/driver pairs to declarative
+	// load_for_all_cards hooks. No discovery is performed implicitly.
+	Cards          []HookCard
+	privateString  *string
+	privateInteger *int64
 }
 
 // Evaluator evaluates pure configuration values against one loaded document.
@@ -207,6 +212,16 @@ func (e *Evaluator) function(name string, compound Value, active map[string]bool
 			return Value{}, fmt.Errorf("alsa config: datadir exceeds 1 MiB")
 		}
 		return Value{Kind: ValueString, Position: compound.Position, String: e.options.DataDir}, nil
+	case "private_string":
+		if e.options.privateString == nil {
+			return Value{}, fmt.Errorf("alsa config: private_string is unavailable outside a card hook")
+		}
+		return Value{Kind: ValueString, Position: compound.Position, String: *e.options.privateString}, nil
+	case "private_integer":
+		if e.options.privateInteger == nil {
+			return Value{}, fmt.Errorf("alsa config: private_integer is unavailable outside a card hook")
+		}
+		return Value{Kind: ValueInteger, Position: compound.Position, Integer: *e.options.privateInteger}, nil
 	default:
 		return Value{}, fmt.Errorf("alsa config: unsupported function %q", name)
 	}
