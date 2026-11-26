@@ -7,7 +7,7 @@ import "fmt"
 func (d *Document) Effective(name string) (Value, error) {
 	assignments := d.Assignments(name)
 	if len(assignments) == 0 {
-		return Value{}, fmt.Errorf("alsa config: assignment %q not found", name)
+		return Value{}, fmt.Errorf("%w: %q", ErrNotFound, name)
 	}
 	var result Value
 	exists := false

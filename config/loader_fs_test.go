@@ -79,4 +79,19 @@ func TestLoadInstalledConfiguration(t *testing.T) {
 	if selector != "hw:CARD=3,DEV=0,SUBDEV=-1" {
 		t.Fatalf("installed pcm.hw selector = %q", selector)
 	}
+
+	// cards/aliases.conf is normally loaded lazily by alsa-lib's card hook. Add
+	// it explicitly here so this hermetic loader can exercise the installed
+	// default-device graph without executing hooks.
+	withAliases, err := Load(path, string(contents)+"\n<confdir:cards/aliases.conf>\n", resolver)
+	if err != nil {
+		t.Fatalf("load installed aliases: %v", err)
+	}
+	defaultPCM, err := NewEvaluator(withAliases, EvalOptions{}).PCMName("default")
+	if err != nil {
+		t.Fatalf("evaluate installed pcm.default: %v", err)
+	}
+	if defaultPCM.Type != "empty" {
+		t.Fatalf("installed pcm.default type = %q; want empty", defaultPCM.Type)
+	}
 }

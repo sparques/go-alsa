@@ -35,8 +35,31 @@ integer { @func igetenv vars [ NUMBER ] default 3 }`)
 	}
 }
 
+func TestEvaluatorCardNumber(t *testing.T) {
+	document, err := Parse("test", `numeric { @func card_inum card 3 }
+stable { @func card_inum card USB }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluator := NewEvaluator(document, EvalOptions{CardNumber: func(card string) (int64, error) {
+		if card != "USB" {
+			t.Fatalf("card resolver received %q", card)
+		}
+		return 7, nil
+	}})
+	for name, want := range map[string]int64{"numeric": 3, "stable": 7} {
+		value, err := evaluator.Reference(name)
+		if err != nil || value.Kind != ValueInteger || value.Integer != want {
+			t.Errorf("Reference(%q) = %#v, %v; want %d", name, value, err, want)
+		}
+	}
+}
+
 func TestEvaluatorDefaultsAndUnsupportedFunctions(t *testing.T) {
 	document, err := Parse("test", `fallback { @func getenv vars [ ABSENT ] default "safe" }
+dynamic { @func refer name { @func concat strings [ target .value ] } }
+missing { @func refer name absent.value default { type plug slave.pcm hw } }
+target.value 17
 unsupported { @func shell command bad }`)
 	if err != nil {
 		t.Fatal(err)
@@ -46,8 +69,27 @@ unsupported { @func shell command bad }`)
 	if err != nil || value.String != "safe" {
 		t.Fatalf("fallback = %#v, %v", value, err)
 	}
+	value, err = evaluator.Reference("dynamic")
+	if err != nil || value.Kind != ValueInteger || value.Integer != 17 {
+		t.Fatalf("dynamic refer = %#v, %v", value, err)
+	}
+	value, err = evaluator.Reference("missing")
+	if err != nil || value.Kind != ValueCompound {
+		t.Fatalf("refer fallback = %#v, %v", value, err)
+	}
 	if _, err := evaluator.Reference("unsupported"); err == nil {
 		t.Fatal("unsupported function succeeded")
+	}
+}
+
+func TestEvaluatorReferFallbackDoesNotHideCycles(t *testing.T) {
+	document, err := Parse("test", `a { @func refer name b default safe }
+b { @func refer name a }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewEvaluator(document, EvalOptions{}).Reference("a"); err == nil {
+		t.Fatal("refer cycle used fallback")
 	}
 }
 

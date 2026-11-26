@@ -1,6 +1,14 @@
 package config
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
+
+// ErrNotFound reports a requested configuration assignment that does not
+// exist. Callers can use errors.Is while retaining the missing path in the
+// returned error.
+var ErrNotFound = errors.New("alsa config: assignment not found")
 
 // Position identifies a byte and human-readable line/column in one source.
 type Position struct {

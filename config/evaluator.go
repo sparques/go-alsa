@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,6 +15,9 @@ const maximumEvaluatedString = 1 << 20
 type EvalOptions struct {
 	Variables map[string]Value
 	LookupEnv func(name string) (value string, ok bool)
+	// CardNumber resolves a stable ALSA card ID for functions such as
+	// card_inum. Numeric card selectors do not require this callback.
+	CardNumber func(card string) (number int64, err error)
 }
 
 // Evaluator evaluates pure configuration values against one loaded document.
@@ -122,11 +126,26 @@ func (e *Evaluator) value(value Value, active map[string]bool, depth int) (Value
 func (e *Evaluator) function(name string, compound Value, active map[string]bool, depth int) (Value, error) {
 	switch name {
 	case "refer":
-		target, ok := compoundString(compound, "name")
-		if !ok || target == "" {
+		nameValue, ok := compoundValue(compound, "name")
+		if !ok {
 			return Value{}, fmt.Errorf("alsa config: refer requires a name")
 		}
-		return e.reference(target, active, depth+1)
+		target, err := e.functionString(nameValue, active, depth+1)
+		if err != nil {
+			return Value{}, fmt.Errorf("alsa config: refer name: %w", err)
+		}
+		if target == "" {
+			return Value{}, fmt.Errorf("alsa config: refer requires a non-empty name")
+		}
+		result, err := e.reference(target, active, depth+1)
+		if err == nil || !errors.Is(err, ErrNotFound) {
+			return result, err
+		}
+		fallback, exists := compoundValue(compound, "default")
+		if !exists {
+			return Value{}, err
+		}
+		return e.value(fallback, active, depth+1)
 	case "concat":
 		stringsValue, ok := compoundValue(compound, "strings")
 		if !ok || stringsValue.Kind != ValueArray {
@@ -150,9 +169,50 @@ func (e *Evaluator) function(name string, compound Value, active map[string]bool
 		return Value{Kind: ValueString, Position: compound.Position, String: builder.String()}, nil
 	case "getenv", "igetenv":
 		return e.getenv(name == "igetenv", compound, active, depth+1)
+	case "card_inum":
+		card, ok := compoundValue(compound, "card")
+		if !ok {
+			return Value{}, fmt.Errorf("alsa config: card_inum requires a card")
+		}
+		evaluated, err := e.value(card, active, depth+1)
+		if err != nil {
+			return Value{}, fmt.Errorf("alsa config: card_inum card: %w", err)
+		}
+		selector, err := scalarText(evaluated)
+		if err != nil || selector == "" {
+			return Value{}, fmt.Errorf("alsa config: card_inum card is not a selector")
+		}
+		number, parseErr := strconv.ParseInt(selector, 10, 64)
+		if parseErr != nil {
+			if e.options.CardNumber == nil {
+				return Value{}, fmt.Errorf("alsa config: card_inum cannot resolve card %q", selector)
+			}
+			number, err = e.options.CardNumber(selector)
+			if err != nil {
+				return Value{}, fmt.Errorf("alsa config: card_inum resolve card %q: %w", selector, err)
+			}
+		}
+		if number < 0 {
+			return Value{}, fmt.Errorf("alsa config: card_inum resolved negative card %d", number)
+		}
+		return Value{Kind: ValueInteger, Position: compound.Position, Integer: number}, nil
 	default:
 		return Value{}, fmt.Errorf("alsa config: unsupported function %q", name)
 	}
+}
+
+func (e *Evaluator) functionString(value Value, active map[string]bool, depth int) (string, error) {
+	// A literal dotted string in a function argument is a path name, not the
+	// value stored at that path. Variables and structured functions still need
+	// evaluation before conversion to text.
+	if value.Kind == ValueString && !strings.HasPrefix(value.String, "$") {
+		return value.String, nil
+	}
+	evaluated, err := e.value(value, active, depth+1)
+	if err != nil {
+		return "", err
+	}
+	return scalarText(evaluated)
 }
 
 func (e *Evaluator) getenv(integer bool, compound Value, active map[string]bool, depth int) (Value, error) {

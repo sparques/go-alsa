@@ -131,7 +131,11 @@ item does not imply that its phase exit criteria have been met.
     hardware test. The host Debian/Ubuntu-style `/usr/share/alsa/alsa.conf`
     loads and its real `pcm.hw` template resolves `hw:3,0`, including ALSA's
     `SUBDEV=-1` automatic-subdevice semantics; both direct and named opens with
-    that sentinel pass on the card-3 C-Media device.)
+    that sentinel pass on the card-3 C-Media device. Computed `refer` names,
+    missing-only reference fallbacks, and numeric/injected `card_inum` are
+    implemented; with the standard card-alias file loaded hermetically, the
+    host's installed `pcm.default` resolves to its typed `empty` fallback
+    graph without executing alsa-lib hooks.)
 - [ ] **Phase 7 — software PCM graph and conversion**
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
