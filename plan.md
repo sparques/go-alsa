@@ -200,6 +200,10 @@ item does not imply that its phase exit criteria have been met.
     `plug` nodes to a direct hardware selector, retaining source-located plugin
     chains and deferring converter construction until application and hardware
     parameters are both known. (Hardware negotiation/I/O integration remains.)
+  - [x] Add deterministic plug target selection over unconstrained hardware
+    capabilities, preferring exact parameters then closest supported integer
+    format and nearest channel/rate ranges while requiring interleaved access.
+    (The kernel's joint refine/commit remains authoritative.)
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**

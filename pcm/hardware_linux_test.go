@@ -165,6 +165,34 @@ func TestPlanNamedPlugHardware(t *testing.T) {
 	}
 }
 
+func TestSelectPlugTargetHardware(t *testing.T) {
+	name := os.Getenv("GO_ALSA_TEST_PCM")
+	if name == "" {
+		t.Skip("set GO_ALSA_TEST_PCM to a direct hw: PCM name")
+	}
+	stream := alsa.Playback
+	if os.Getenv("GO_ALSA_TEST_PCM_STREAM") == "capture" {
+		stream = alsa.Capture
+	}
+	handle, err := OpenHardware(name, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	capabilities, err := handle.Capabilities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := SelectPlugTarget(ConversionParams{Format: U8, Channels: 1, Rate: 16000}, capabilities)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Access != RWInterleaved || target.Params.Channels <= 0 || target.Params.Rate <= 0 {
+		t.Fatalf("invalid selected target: %#v", target)
+	}
+	t.Logf("selected %s, %d channels, %d Hz", target.Params.Format, target.Params.Channels, target.Params.Rate)
+}
+
 func TestCaptureXRUNRecovery(t *testing.T) {
 	name := os.Getenv("GO_ALSA_TEST_PCM")
 	if name == "" || os.Getenv("GO_ALSA_TEST_XRUN") != "1" || os.Getenv("GO_ALSA_TEST_PCM_STREAM") != "capture" {
