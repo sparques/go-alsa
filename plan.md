@@ -174,6 +174,9 @@ item does not imply that its phase exit criteria have been met.
     deterministically ordered hook cards and pure `card_inum`, `card_id`, and
     `card_name` callbacks, rejecting ambiguous metadata.)
 - [ ] **Phase 7 — software PCM graph and conversion**
+  - [x] Add allocation-free integer sample decode/encode/conversion primitives
+    for supported 8/16/24/32-bit signed/unsigned, little/big-endian, packed and
+    container formats using a signed Q1.31 intermediate representation.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
