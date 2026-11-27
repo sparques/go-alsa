@@ -147,11 +147,8 @@ type PlugHardwareRequest struct {
 // deterministic format/channel candidates through the kernel's joint near
 // refinement. The returned setup has not been committed.
 func (h *Handle) RefinePlugHardware(request PlugHardwareRequest) (PlugTarget, HardwareSetup, error) {
-	if err := validateConversionParams("application", request.Application); err != nil {
+	if err := validatePlugHardwareRequest(request); err != nil {
 		return PlugTarget{}, HardwareSetup{}, err
-	}
-	if request.PeriodFrames <= 0 || request.BufferFrames < request.PeriodFrames || request.PeriodCount < 0 {
-		return PlugTarget{}, HardwareSetup{}, fmt.Errorf("alsa pcm: invalid plug hardware timing request")
 	}
 	capabilities, err := h.Capabilities()
 	if err != nil {
@@ -187,6 +184,16 @@ func (h *Handle) RefinePlugHardware(request PlugHardwareRequest) (PlugTarget, Ha
 		}
 	}
 	return PlugTarget{}, HardwareSetup{}, fmt.Errorf("%w: %v", ErrNoPlugTarget, last)
+}
+
+func validatePlugHardwareRequest(request PlugHardwareRequest) error {
+	if err := validateConversionParams("application", request.Application); err != nil {
+		return err
+	}
+	if request.PeriodFrames <= 0 || request.BufferFrames < request.PeriodFrames || request.PeriodCount < 0 {
+		return fmt.Errorf("alsa pcm: invalid plug hardware timing request")
+	}
+	return nil
 }
 
 // ConfigurePlugHardware selects and refines a conversion-friendly hardware

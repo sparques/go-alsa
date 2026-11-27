@@ -87,3 +87,63 @@ func (p NamedPlan) Converter(application, hardware ConversionParams, matrix []in
 	}
 	return NewPlugConverter(PlugConfig{Application: application, Hardware: hardware, Matrix: matrix}, p.Stream)
 }
+
+// ConfigureHandle negotiates and commits hardware for this plan, then returns
+// its software converter when the graph contains a plug node. Direct plans
+// require the application format, channels, and rate exactly. Converter
+// validation occurs before hardware is committed.
+func (p NamedPlan) ConfigureHandle(h *Handle, request PlugHardwareRequest, matrix []int32) (HardwareSetup, *PlugConverter, error) {
+	if h == nil {
+		return HardwareSetup{}, nil, errors.New("alsa pcm: named plan requires a handle")
+	}
+	if err := p.validateHandleDirection(h); err != nil {
+		return HardwareSetup{}, nil, err
+	}
+	if err := validatePlugHardwareRequest(request); err != nil {
+		return HardwareSetup{}, nil, err
+	}
+	if !p.RequiresPlug {
+		config := HardwareConfig{
+			Access: RWInterleaved, Format: request.Application.Format,
+			Channels: request.Application.Channels, Rate: request.Application.Rate,
+			PeriodFrames: request.PeriodFrames, PeriodCount: request.PeriodCount,
+			BufferFrames: request.BufferFrames,
+		}
+		setup, err := h.ConfigureHardware(config)
+		return setup, nil, err
+	}
+
+	_, refined, err := h.RefinePlugHardware(request)
+	if err != nil {
+		return HardwareSetup{}, nil, err
+	}
+	hardware := ConversionParams{Format: refined.Format, Channels: refined.Channels, Rate: refined.Rate}
+	converter, err := p.Converter(request.Application, hardware, matrix)
+	if err != nil {
+		return HardwareSetup{}, nil, err
+	}
+	committed, err := h.ConfigureHardware(refined.HardwareConfig)
+	if err != nil {
+		return HardwareSetup{}, nil, fmt.Errorf("alsa pcm: commit named plug target: %w", err)
+	}
+	if committed.HardwareConfig != refined.HardwareConfig {
+		return HardwareSetup{}, nil, errors.New("alsa pcm: committed named plug target differs from refinement")
+	}
+	return committed, converter, nil
+}
+
+func (p NamedPlan) validateHandleDirection(h *Handle) error {
+	switch p.Stream {
+	case alsa.Playback:
+		if h.stream != streamPlayback {
+			return ErrDirection
+		}
+	case alsa.Capture:
+		if h.stream != streamCapture {
+			return ErrDirection
+		}
+	default:
+		return errors.New("alsa pcm: invalid named plan stream")
+	}
+	return nil
+}

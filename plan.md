@@ -213,6 +213,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Commit a jointly refined plug target as one exact hardware tuple,
     returning the committed conversion domain and leaving unsuccessful searches
     unconfigured.
+  - [x] Connect named direct/plug plans to hardware configuration, validating
+    direction and converter construction before committing a refined plug
+    target while retaining exact parameters for direct routes.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**

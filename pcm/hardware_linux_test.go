@@ -163,6 +163,18 @@ func TestPlanNamedPlugHardware(t *testing.T) {
 	if handle.Info().Device != address.Device {
 		t.Fatalf("opened info = %#v", handle.Info())
 	}
+	application := ConversionParams{Format: U8, Channels: 1, Rate: 16000}
+	setup, converter, err := plan.ConfigureHandle(handle, PlugHardwareRequest{
+		Application: application, PeriodFrames: 480, BufferFrames: 4800,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hardware := ConversionParams{Format: setup.Format, Channels: setup.Channels, Rate: setup.Rate}
+	if converter == nil || converter.ApplicationParams() != application || converter.HardwareParams() != hardware {
+		t.Fatalf("named setup/converter = %#v/%#v", setup, converter)
+	}
+	t.Logf("named plug committed %s, %d channels, %d Hz", setup.Format, setup.Channels, setup.Rate)
 }
 
 func TestSelectPlugTargetHardware(t *testing.T) {

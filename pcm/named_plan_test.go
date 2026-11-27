@@ -85,3 +85,17 @@ func TestPlanNamedRejectsExecutablePlugin(t *testing.T) {
 		t.Fatalf("PlanNamed error = %v", err)
 	}
 }
+
+func TestNamedPlanConfigureHandleValidation(t *testing.T) {
+	request := PlugHardwareRequest{
+		Application:  ConversionParams{Format: S16LE, Channels: 2, Rate: 48000},
+		PeriodFrames: 480, BufferFrames: 960,
+	}
+	plan := NamedPlan{Stream: alsa.Playback, RequiresPlug: true}
+	if _, _, err := plan.ConfigureHandle(nil, request, nil); err == nil {
+		t.Fatal("ConfigureHandle nil handle succeeded")
+	}
+	if _, _, err := plan.ConfigureHandle(&Handle{stream: streamCapture}, request, nil); !errors.Is(err, ErrDirection) {
+		t.Fatalf("ConfigureHandle direction error = %v", err)
+	}
+}
