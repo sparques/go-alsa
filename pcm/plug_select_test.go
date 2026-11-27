@@ -66,3 +66,14 @@ func TestNamedPlanConverterForCapabilities(t *testing.T) {
 		t.Fatalf("direct plan conversion error = %v", err)
 	}
 }
+
+func TestOrderedPlugCandidates(t *testing.T) {
+	formats := orderedIntegerFormats(S24_3LE, []Format{S16LE, S32BE, S16LE, Format(999)})
+	if len(formats) != 2 || formats[0] != S32BE || formats[1] != S16LE {
+		t.Fatalf("ordered formats = %v", formats)
+	}
+	channels, err := orderedChannelCandidates(6, Range{Minimum: 1, Maximum: 8, OpenMaximum: true, Integer: true})
+	if err != nil || len(channels) < 3 || channels[0] != 6 || channels[1] != 7 {
+		t.Fatalf("ordered channels = %v, %v", channels, err)
+	}
+}

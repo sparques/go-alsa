@@ -204,6 +204,15 @@ item does not imply that its phase exit criteria have been met.
     capabilities, preferring exact parameters then closest supported integer
     format and nearest channel/rate ranges while requiring interleaved access.
     (The kernel's joint refine/commit remains authoritative.)
+  - [x] Expose non-mutating joint near-refinement for a complete hardware tuple,
+    sharing the exact negotiation path with commit while leaving the PCM in
+    OPEN state and rejecting refinement after configuration.
+  - [x] Try deterministically scored integer format/channel candidates through
+    non-mutating kernel joint refinement, returning the first viable plug target
+    with its actual near rate/timing and a typed no-target error otherwise.
+  - [x] Commit a jointly refined plug target as one exact hardware tuple,
+    returning the committed conversion domain and leaving unsuccessful searches
+    unconfigured.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**

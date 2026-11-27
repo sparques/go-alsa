@@ -369,6 +369,13 @@ func (h *Handle) ConfigureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	return h.configureHardwareNear(config)
 }
 
+// RefineHardwareNear computes the jointly supported parameters that
+// ConfigureHardwareNear would request without committing HW_PARAMS or changing
+// the PCM from OPEN state.
+func (h *Handle) RefineHardwareNear(config HardwareConfig) (HardwareSetup, error) {
+	return h.refineHardwareNear(config)
+}
+
 // HardwareSetup contains the parameters accepted by the kernel and additional
 // stream properties reported by SNDRV_PCM_IOCTL_HW_PARAMS.
 type HardwareSetup struct {

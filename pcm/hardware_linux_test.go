@@ -191,6 +191,26 @@ func TestSelectPlugTargetHardware(t *testing.T) {
 		t.Fatalf("invalid selected target: %#v", target)
 	}
 	t.Logf("selected %s, %d channels, %d Hz", target.Params.Format, target.Params.Channels, target.Params.Rate)
+	request := PlugHardwareRequest{
+		Application:  ConversionParams{Format: U8, Channels: 1, Rate: 16000},
+		PeriodFrames: 480, BufferFrames: 4800,
+	}
+	jointTarget, setup, err := handle.RefinePlugHardware(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jointTarget.Params.Format != setup.Format || jointTarget.Params.Channels != setup.Channels || jointTarget.Params.Rate != setup.Rate {
+		t.Fatalf("joint target %#v differs from refined setup %#v", jointTarget, setup)
+	}
+	t.Logf("jointly refined %s, %d channels, %d Hz", setup.Format, setup.Channels, setup.Rate)
+	committedTarget, committed, err := handle.ConfigurePlugHardware(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if committedTarget != jointTarget || committed.HardwareConfig != setup.HardwareConfig {
+		t.Fatalf("committed target/setup %#v/%#v differ from refinement %#v/%#v", committedTarget, committed, jointTarget, setup)
+	}
+	t.Logf("committed %s, %d channels, %d Hz", committed.Format, committed.Channels, committed.Rate)
 }
 
 func TestCaptureXRUNRecovery(t *testing.T) {
@@ -262,12 +282,22 @@ func TestConfigureHardware(t *testing.T) {
 	}
 	defer handle.Close()
 	config := HardwareConfig{Access: RWInterleaved, Format: S16LE, Channels: channels, Rate: 48000, PeriodFrames: 480, PeriodCount: 10, BufferFrames: 4800}
+	refined, err := handle.RefineHardwareNear(config)
+	if err != nil {
+		t.Fatalf("RefineHardwareNear: %v", err)
+	}
+	if refined.Access != config.Access || refined.Format != config.Format || refined.Channels != config.Channels || refined.Rate != config.Rate {
+		t.Fatalf("refined setup = %#v; requested %#v", refined, config)
+	}
 	setup, err := handle.ConfigureHardware(config)
 	if err != nil {
 		t.Fatalf("ConfigureHardware: %v", err)
 	}
 	if setup.Access != config.Access || setup.Format != config.Format || setup.Channels != config.Channels || setup.Rate != config.Rate {
 		t.Errorf("setup = %#v; requested %#v", setup, config)
+	}
+	if _, err := handle.RefineHardwareNear(config); err == nil {
+		t.Fatal("RefineHardwareNear succeeded after hardware configuration")
 	}
 	if setup.Periods != config.PeriodCount || setup.PeriodTimeMicros <= 0 || setup.BufferTimeMicros <= 0 {
 		t.Errorf("timing setup = %#v", setup)

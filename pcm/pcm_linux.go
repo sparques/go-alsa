@@ -128,7 +128,38 @@ func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	params, err := h.refineHardwareNearLocked(config)
+	if err != nil {
+		return HardwareSetup{}, err
+	}
+	params.RequestMask = ^uint32(0)
+	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWParams, unsafe.Pointer(&params)); err != nil {
+		return HardwareSetup{}, operationError("configure negotiated hardware", err)
+	}
+	setup := hardwareSetup(params)
+	h.hardware = &setup
+	h.software = nil
+	h.prepared = false
+	return setup, nil
+}
 
+func (h *Handle) refineHardwareNear(config HardwareConfig) (HardwareSetup, error) {
+	if err := validateHardwareConfig(config); err != nil {
+		return HardwareSetup{}, err
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hardware != nil {
+		return HardwareSetup{}, errors.New("alsa pcm: cannot refine hardware after configuration")
+	}
+	params, err := h.refineHardwareNearLocked(config)
+	if err != nil {
+		return HardwareSetup{}, err
+	}
+	return hardwareSetup(params), nil
+}
+
+func (h *Handle) refineHardwareNearLocked(config HardwareConfig) (uapi.PCMHWParams, error) {
 	params := anyHardwareParams()
 	setMask(&params, uapi.PCMHWParamAccess, uint32(config.Access))
 	setMask(&params, uapi.PCMHWParamFormat, uint32(config.Format))
@@ -136,7 +167,7 @@ func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	setInterval(&params, uapi.PCMHWParamChannels, uint32(config.Channels))
 	params.RequestMask = ^uint32(0)
 	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWRefine, unsafe.Pointer(&params)); err != nil {
-		return HardwareSetup{}, operationError("refine fixed hardware parameters", err)
+		return uapi.PCMHWParams{}, operationError("refine fixed hardware parameters", err)
 	}
 	requests := []struct {
 		parameter int
@@ -160,18 +191,10 @@ func (h *Handle) configureHardwareNear(config HardwareConfig) (HardwareSetup, er
 	}{uapi.PCMHWParamBufferSize, uint32(config.BufferFrames), "buffer size"})
 	for _, request := range requests {
 		if err := h.refineNear(&params, request.parameter, request.value); err != nil {
-			return HardwareSetup{}, operationError(fmt.Sprintf("negotiate %s near %d", request.name, request.value), err)
+			return uapi.PCMHWParams{}, operationError(fmt.Sprintf("negotiate %s near %d", request.name, request.value), err)
 		}
 	}
-	params.RequestMask = ^uint32(0)
-	if err := h.core.fd.Ioctl(uapi.PCMIoctlHWParams, unsafe.Pointer(&params)); err != nil {
-		return HardwareSetup{}, operationError("configure negotiated hardware", err)
-	}
-	setup := hardwareSetup(params)
-	h.hardware = &setup
-	h.software = nil
-	h.prepared = false
-	return setup, nil
+	return params, nil
 }
 
 type nearCandidate struct {

@@ -1,6 +1,14 @@
 package pcm
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"sort"
+)
+
+// ErrNoPlugTarget reports that no deterministic integer format/channel tuple
+// survived the kernel's joint refinement.
+var ErrNoPlugTarget = errors.New("alsa pcm: no jointly supported plug target")
 
 // PlugTarget is a deterministic conversion-friendly candidate selected from
 // unconstrained hardware capabilities. The kernel must still jointly refine
@@ -124,4 +132,117 @@ func (p NamedPlan) ConverterForCapabilities(application ConversionParams, capabi
 		return PlugTarget{}, nil, err
 	}
 	return target, converter, nil
+}
+
+// PlugHardwareRequest combines application parameters with hardware timing
+// goals. Format, channels, and rate are selected and jointly refined.
+type PlugHardwareRequest struct {
+	Application  ConversionParams
+	PeriodFrames int
+	PeriodCount  int
+	BufferFrames int
+}
+
+// RefinePlugHardware queries current capabilities and non-mutatingly tries
+// deterministic format/channel candidates through the kernel's joint near
+// refinement. The returned setup has not been committed.
+func (h *Handle) RefinePlugHardware(request PlugHardwareRequest) (PlugTarget, HardwareSetup, error) {
+	if err := validateConversionParams("application", request.Application); err != nil {
+		return PlugTarget{}, HardwareSetup{}, err
+	}
+	if request.PeriodFrames <= 0 || request.BufferFrames < request.PeriodFrames || request.PeriodCount < 0 {
+		return PlugTarget{}, HardwareSetup{}, fmt.Errorf("alsa pcm: invalid plug hardware timing request")
+	}
+	capabilities, err := h.Capabilities()
+	if err != nil {
+		return PlugTarget{}, HardwareSetup{}, err
+	}
+	if !containsAccess(capabilities.Accesses, RWInterleaved) {
+		return PlugTarget{}, HardwareSetup{}, fmt.Errorf("%w: RW_INTERLEAVED unavailable", ErrNoPlugTarget)
+	}
+	formats := orderedIntegerFormats(request.Application.Format, capabilities.Formats)
+	channels, err := orderedChannelCandidates(request.Application.Channels, capabilities.Channels)
+	if err != nil {
+		return PlugTarget{}, HardwareSetup{}, fmt.Errorf("%w: %v", ErrNoPlugTarget, err)
+	}
+	if len(formats) == 0 {
+		return PlugTarget{}, HardwareSetup{}, fmt.Errorf("%w: no supported integer format", ErrNoPlugTarget)
+	}
+	var last error
+	for _, format := range formats {
+		for _, channelCount := range channels {
+			candidate := HardwareConfig{
+				Access: RWInterleaved, Format: format, Channels: channelCount, Rate: request.Application.Rate,
+				PeriodFrames: request.PeriodFrames, PeriodCount: request.PeriodCount, BufferFrames: request.BufferFrames,
+			}
+			setup, refineErr := h.RefineHardwareNear(candidate)
+			if refineErr == nil {
+				target := PlugTarget{Access: setup.Access, Params: ConversionParams{Format: setup.Format, Channels: setup.Channels, Rate: setup.Rate}}
+				return target, setup, nil
+			}
+			if errors.Is(refineErr, ErrDisconnected) {
+				return PlugTarget{}, HardwareSetup{}, refineErr
+			}
+			last = refineErr
+		}
+	}
+	return PlugTarget{}, HardwareSetup{}, fmt.Errorf("%w: %v", ErrNoPlugTarget, last)
+}
+
+// ConfigurePlugHardware selects and refines a conversion-friendly hardware
+// tuple, then commits that exact tuple. It moves the PCM from OPEN to SETUP on
+// success; a failed search does not commit hardware parameters.
+func (h *Handle) ConfigurePlugHardware(request PlugHardwareRequest) (PlugTarget, HardwareSetup, error) {
+	target, refined, err := h.RefinePlugHardware(request)
+	if err != nil {
+		return PlugTarget{}, HardwareSetup{}, err
+	}
+	committed, err := h.ConfigureHardware(refined.HardwareConfig)
+	if err != nil {
+		return PlugTarget{}, HardwareSetup{}, fmt.Errorf("alsa pcm: commit refined plug target: %w", err)
+	}
+	target = PlugTarget{
+		Access: committed.Access,
+		Params: ConversionParams{Format: committed.Format, Channels: committed.Channels, Rate: committed.Rate},
+	}
+	return target, committed, nil
+}
+
+func orderedIntegerFormats(target Format, values []Format) []Format {
+	result := make([]Format, 0, len(values))
+	seen := make(map[Format]bool, len(values))
+	for _, value := range values {
+		if _, err := integerLayout(value); err == nil && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		left, right := formatDistance(target, result[i]), formatDistance(target, result[j])
+		return left < right || left == right && result[i] < result[j]
+	})
+	return result
+}
+
+func orderedChannelCandidates(target int, values Range) ([]int, error) {
+	nearest, err := nearestRangeValue(target, values, "channels")
+	if err != nil {
+		return nil, err
+	}
+	minimum, _ := nearestRangeValue(1, values, "channels")
+	maximum, _ := nearestRangeValue(maximumInt, values, "channels")
+	seen := map[int]bool{}
+	var result []int
+	for _, value := range []int{nearest, 1, 2, minimum, maximum} {
+		if value < minimum || value > maximum || seen[value] {
+			continue
+		}
+		seen[value] = true
+		result = append(result, value)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		left, right := absInt(result[i]-target), absInt(result[j]-target)
+		return left < right || left == right && result[i] < result[j]
+	})
+	return result, nil
 }
