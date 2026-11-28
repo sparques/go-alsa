@@ -18,7 +18,8 @@ implementation item has passed every release environment.
   one second at 48 kHz; dominant 1 kHz tone and zero XRUN counters.
 - `snd-aloop`: deterministic device-0 playback to device-1 capture tests use
   the stable `Loopback` card ID and matching subdevice rather than a card
-  number.
+  number; a separate subdevice exercises named plug capture from S16_LE stereo
+  at 48 kHz to S16_LE mono at 16 kHz.
 - `snd-dummy`: negotiation, prepared/running/drop/free lifecycle tests use the
   stable `Dummy` card ID.
 

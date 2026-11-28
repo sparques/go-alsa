@@ -27,7 +27,7 @@ func TestPlugIOValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := capture.ReadInterleavedBytes(context.Background(), &Handle{stream: streamPlayback}, nil, nil, nil); !errors.Is(err, ErrDirection) {
+	if _, _, err := capture.ReadInterleavedBytes(context.Background(), &Handle{stream: streamPlayback}, nil, nil, nil); !errors.Is(err, ErrDirection) {
 		t.Fatalf("capture direction error = %v", err)
 	}
 }

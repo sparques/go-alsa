@@ -217,8 +217,9 @@ item does not imply that its phase exit criteria have been met.
     direction and converter construction before committing a refined plug
     target while retaining exact parameters for direct routes.
   - [x] Add allocation-free plug playback/capture transfer helpers using
-    caller-owned conversion buffers, application-domain frame accounting,
-    partial-write draining, and conversion of only frames actually captured.
+    caller-owned conversion buffers, explicit application/hardware capture
+    frame accounting, partial-write draining, and conversion of only frames
+    actually captured.
   - [x] Flush the playback resampler tail through the hardware transfer path
     with caller-owned storage and explicit post-conversion error accounting.
 - [ ] **Phase 8 — shared PCM plugins**
@@ -236,6 +237,8 @@ item does not imply that its phase exit criteria have been met.
     sandbox does not expose `/dev/snd`.
     - [x] Add card-number-independent, opt-in `snd-aloop` signal-integrity and
       `snd-dummy` lifecycle fixtures with endpoint overrides.
+    - [x] Exercise named plug capture I/O over `snd-aloop`, including kernel
+      reads, channel reduction, rate conversion, encoding, and tail flush.
   - [x] Run an opt-in one-second analog loopback on the C-Media USB card using
     simultaneous stereo playback and mono capture; verify the expected tone is
     dominant and both stream XRUN counters remain zero.

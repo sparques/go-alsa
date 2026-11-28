@@ -77,33 +77,35 @@ func (c *PlugConverter) FlushPlayback(ctx context.Context, h *Handle, converted 
 }
 
 // ReadInterleavedBytes captures into hardware, converts only the frames
-// actually read, and returns application-domain frames in application. The
+// actually read, and returns application-domain and consumed hardware frames.
+// The
 // hardware, application, and scratch buffers are caller-owned. Application
 // may be sized for the maximum output predicted from the hardware buffer.
 // This method allocates no memory and is not safe for concurrent use with
 // other converter operations.
-func (c *PlugConverter) ReadInterleavedBytes(ctx context.Context, h *Handle, application, hardware []byte, scratch []int32) (int, error) {
+func (c *PlugConverter) ReadInterleavedBytes(ctx context.Context, h *Handle, application, hardware []byte, scratch []int32) (int, int, error) {
 	if c == nil || c.StreamConverter == nil {
-		return 0, errors.New("alsa pcm: uninitialized plug converter")
+		return 0, 0, errors.New("alsa pcm: uninitialized plug converter")
 	}
 	if h == nil {
-		return 0, errors.New("alsa pcm: plug capture requires a handle")
+		return 0, 0, errors.New("alsa pcm: plug capture requires a handle")
 	}
 	if c.stream != alsa.Capture || h.stream != streamCapture {
-		return 0, ErrDirection
+		return 0, 0, ErrDirection
 	}
 	hardwareFrameBytes, err := conversionFrameBytes(c.hardware)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	if len(hardware)%hardwareFrameBytes != 0 {
-		return 0, errors.New("alsa pcm: plug capture hardware buffer contains a partial frame")
+		return 0, 0, errors.New("alsa pcm: plug capture hardware buffer contains a partial frame")
 	}
 	readFrames, err := h.ReadInterleavedBytes(ctx, hardware)
 	if err != nil {
-		return 0, err
+		return 0, readFrames, err
 	}
-	return c.Process(application, hardware[:readFrames*hardwareFrameBytes], scratch)
+	applicationFrames, err := c.Process(application, hardware[:readFrames*hardwareFrameBytes], scratch)
+	return applicationFrames, readFrames, err
 }
 
 func conversionFrameBytes(parameters ConversionParams) (int, error) {
