@@ -3,7 +3,7 @@
 This file records reproducible evidence rather than implying that a checked
 implementation item has passed every release environment.
 
-## Current host report — 2026-11-24
+## Current host report — 2026-11-28
 
 - Host: Linux 6.18.58 x86_64, Go 1.27.3, cgo disabled for library tests.
 - HDA ATI HDMI: two playback PCMs discovered.
@@ -16,6 +16,11 @@ implementation item has passed every release environment.
   mixer operations exercised.
 - C-Media analog loopback: simultaneous stereo playback and mono capture for
   one second at 48 kHz; dominant 1 kHz tone and zero XRUN counters.
+- `snd-aloop`: deterministic device-0 playback to device-1 capture tests use
+  the stable `Loopback` card ID and matching subdevice rather than a card
+  number.
+- `snd-dummy`: negotiation, prepared/running/drop/free lifecycle tests use the
+  stable `Dummy` card ID.
 
 `alsa-info-go` ordering and metadata matched `aplay -l` and `arecord -l` for all
 four cards and nine stream directions visible during this report.
@@ -34,6 +39,17 @@ Reproduce the connected USB loopback with:
 GO_ALSA_TEST_LOOPBACK_PCM=hw:3,0 go test ./pcm -run TestHardwareLoopback -v
 ```
 
+Reproduce virtual-device tests after loading `snd-aloop` and `snd-dummy`:
+
+```sh
+GO_ALSA_TEST_ALOOP=1 go test ./pcm -run TestKernelLoopback -v
+GO_ALSA_TEST_DUMMY=1 go test ./pcm -run TestDummyHardwareLifecycle -v
+```
+
+Override the stable defaults when needed with
+`GO_ALSA_TEST_ALOOP_PLAYBACK_PCM`, `GO_ALSA_TEST_ALOOP_CAPTURE_PCM`, and
+`GO_ALSA_TEST_DUMMY_PCM`.
+
 ## Automated build gates
 
 - Native Linux amd64 tests with `CGO_ENABLED=0`.
@@ -43,6 +59,6 @@ GO_ALSA_TEST_LOOPBACK_PCM=hw:3,0 go test ./pcm -run TestHardwareLoopback -v
 - `go vet ./...` and `git diff --check`.
 
 Still missing for release qualification: Linux 4.14 execution, arm64 hardware,
-virtual ALSA devices, no-device/permission containers, long-duration loopback,
+no-device/permission containers, long-duration loopback,
 and the additional architectures listed in the implementation plan.
 
