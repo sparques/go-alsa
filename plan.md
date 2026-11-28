@@ -216,6 +216,9 @@ item does not imply that its phase exit criteria have been met.
   - [x] Connect named direct/plug plans to hardware configuration, validating
     direction and converter construction before committing a refined plug
     target while retaining exact parameters for direct routes.
+  - [x] Add allocation-free plug playback/capture transfer helpers using
+    caller-owned conversion buffers, application-domain frame accounting,
+    partial-write draining, and conversion of only frames actually captured.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**

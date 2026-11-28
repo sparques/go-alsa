@@ -175,6 +175,33 @@ func TestPlanNamedPlugHardware(t *testing.T) {
 		t.Fatalf("named setup/converter = %#v/%#v", setup, converter)
 	}
 	t.Logf("named plug committed %s, %d channels, %d Hz", setup.Format, setup.Channels, setup.Rate)
+	if stream == alsa.Playback {
+		if _, err := handle.ConfigureSoftwareDefaults(); err != nil {
+			t.Fatal(err)
+		}
+		if err := handle.Prepare(); err != nil {
+			t.Fatal(err)
+		}
+		applicationBytes := make([]byte, 160)
+		for index := range applicationBytes {
+			applicationBytes[index] = 0x80 // unsigned 8-bit silence
+		}
+		hardwareFrames, err := converter.PendingFrames(160)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hardwareWidth, _ := setup.Format.PhysicalBytes()
+		converted := make([]byte, hardwareFrames*setup.Channels*hardwareWidth)
+		scratchSamples, err := converter.ScratchSamples(160)
+		if err != nil {
+			t.Fatal(err)
+		}
+		consumed, err := converter.WriteInterleavedBytes(t.Context(), handle, converted, applicationBytes, make([]int32, scratchSamples))
+		if err != nil || consumed != 160 {
+			t.Fatalf("converted playback consumed %d frames: %v", consumed, err)
+		}
+		t.Logf("converted 160 application frames into %d hardware frames", hardwareFrames)
+	}
 }
 
 func TestSelectPlugTargetHardware(t *testing.T) {
