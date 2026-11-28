@@ -200,7 +200,16 @@ func TestPlanNamedPlugHardware(t *testing.T) {
 		if err != nil || consumed != 160 {
 			t.Fatalf("converted playback consumed %d frames: %v", consumed, err)
 		}
-		t.Logf("converted 160 application frames into %d hardware frames", hardwareFrames)
+		tailFrames, err := converter.PendingFlushFrames()
+		if err != nil {
+			t.Fatal(err)
+		}
+		tail := make([]byte, tailFrames*setup.Channels*hardwareWidth)
+		flushed, err := converter.FlushPlayback(t.Context(), handle, tail, make([]int32, tailFrames*setup.Channels))
+		if err != nil || flushed != tailFrames {
+			t.Fatalf("converted playback flushed %d frames: %v", flushed, err)
+		}
+		t.Logf("converted 160 application frames into %d hardware frames plus %d tail frames", hardwareFrames, tailFrames)
 	}
 }
 

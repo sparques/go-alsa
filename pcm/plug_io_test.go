@@ -20,6 +20,9 @@ func TestPlugIOValidation(t *testing.T) {
 	if _, err := playback.WriteInterleavedBytes(context.Background(), &Handle{stream: streamCapture}, nil, nil, nil); !errors.Is(err, ErrDirection) {
 		t.Fatalf("playback direction error = %v", err)
 	}
+	if _, err := playback.FlushPlayback(context.Background(), &Handle{stream: streamCapture}, nil, nil); !errors.Is(err, ErrDirection) {
+		t.Fatalf("playback flush direction error = %v", err)
+	}
 	capture, err := NewPlugConverter(PlugConfig{Application: parameters, Hardware: parameters}, alsa.Capture)
 	if err != nil {
 		t.Fatal(err)

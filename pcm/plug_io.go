@@ -41,17 +41,39 @@ func (c *PlugConverter) WriteInterleavedBytes(ctx context.Context, h *Handle, co
 		return 0, err
 	}
 	converted = converted[:hardwareFrames*hardwareFrameBytes]
-	for writtenFrames := 0; writtenFrames < hardwareFrames; {
-		written, writeErr := h.WriteInterleavedBytes(ctx, converted[writtenFrames*hardwareFrameBytes:])
-		writtenFrames += written
-		if writeErr != nil {
-			return applicationFrames, writeErr
-		}
-		if written == 0 {
-			return applicationFrames, errors.New("alsa pcm: plug playback hardware write made no progress")
-		}
+	if err := writeHardwareFrames(ctx, h, converted, hardwareFrameBytes, hardwareFrames); err != nil {
+		return applicationFrames, err
 	}
 	return applicationFrames, nil
+}
+
+// FlushPlayback emits and writes the converter's zero-padded resampler tail.
+// Converted must hold PendingFlushFrames hardware frames and scratch must hold
+// that many hardware-channel samples. Once conversion succeeds, the returned
+// hardware frames have been consumed even if a later hardware write fails.
+func (c *PlugConverter) FlushPlayback(ctx context.Context, h *Handle, converted []byte, scratch []int32) (int, error) {
+	if c == nil || c.StreamConverter == nil {
+		return 0, errors.New("alsa pcm: uninitialized plug converter")
+	}
+	if h == nil {
+		return 0, errors.New("alsa pcm: plug playback flush requires a handle")
+	}
+	if c.stream != alsa.Playback || h.stream != streamPlayback {
+		return 0, ErrDirection
+	}
+	hardwareFrames, err := c.Flush(converted, scratch)
+	if err != nil {
+		return 0, err
+	}
+	hardwareFrameBytes, err := conversionFrameBytes(c.hardware)
+	if err != nil {
+		return hardwareFrames, err
+	}
+	converted = converted[:hardwareFrames*hardwareFrameBytes]
+	if err := writeHardwareFrames(ctx, h, converted, hardwareFrameBytes, hardwareFrames); err != nil {
+		return hardwareFrames, err
+	}
+	return hardwareFrames, nil
 }
 
 // ReadInterleavedBytes captures into hardware, converts only the frames
@@ -90,4 +112,18 @@ func conversionFrameBytes(parameters ConversionParams) (int, error) {
 		return 0, fmt.Errorf("alsa pcm: invalid conversion frame representation")
 	}
 	return width * parameters.Channels, nil
+}
+
+func writeHardwareFrames(ctx context.Context, h *Handle, buffer []byte, frameBytes, frames int) error {
+	for writtenFrames := 0; writtenFrames < frames; {
+		written, err := h.WriteInterleavedBytes(ctx, buffer[writtenFrames*frameBytes:])
+		writtenFrames += written
+		if err != nil {
+			return err
+		}
+		if written == 0 {
+			return errors.New("alsa pcm: plug playback hardware write made no progress")
+		}
+	}
+	return nil
 }

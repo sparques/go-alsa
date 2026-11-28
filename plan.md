@@ -219,6 +219,8 @@ item does not imply that its phase exit criteria have been met.
   - [x] Add allocation-free plug playback/capture transfer helpers using
     caller-owned conversion buffers, application-domain frame accounting,
     partial-write draining, and conversion of only frames actually captured.
+  - [x] Flush the playback resampler tail through the hardware transfer path
+    with caller-owned storage and explicit post-conversion error accounting.
 - [ ] **Phase 8 — shared PCM plugins**
 - [ ] **External sound-server detection and extension boundary**
 - [ ] **Public API design and stability review**
